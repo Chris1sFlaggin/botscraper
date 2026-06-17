@@ -56,6 +56,14 @@ describe("parseRemovalList", () => {
     const bad = JSON.parse(valid); bad.bots = "nope";
     expect(parseRemovalList(JSON.stringify(bad)).ok).toBe(false);
   });
+  it("rejects a wrong app field", () => {
+    const bad = JSON.parse(valid); bad.app = "somethingelse";
+    expect(parseRemovalList(JSON.stringify(bad)).ok).toBe(false);
+  });
+  it("rejects bots missing a string id/username", () => {
+    const bad = JSON.parse(valid); bad.bots = [{ id: 123, username: "x" }];
+    expect(parseRemovalList(JSON.stringify(bad)).ok).toBe(false);
+  });
 });
 
 describe("bindCheck", () => {
