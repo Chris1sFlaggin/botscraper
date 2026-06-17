@@ -217,3 +217,39 @@ export function parseEnrichment(user: any): Enrichment {
     hasExternalUrl: !!user?.external_url,
   };
 }
+
+export function friendshipShowUrlGenerator(id: string): string {
+  return `https://www.instagram.com/api/v1/friendships/show/${id}/`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseResolvedTarget(json: any): { id: string; username: string; isPrivate: boolean } | null {
+  const user = json?.data?.user;
+  if (!user || (user.id === undefined && user.pk === undefined)) {
+    return null;
+  }
+  return {
+    id: String(user.id ?? user.pk),
+    username: user.username ?? "",
+    isPrivate: !!user.is_private,
+  };
+}
+
+export function shouldRemoveAfterShow(
+  show: { following: boolean; followed_by: boolean },
+  isWhitelisted: boolean,
+): boolean {
+  return show.followed_by === true && show.following === false && !isWhitelisted;
+}
+
+export async function resolveTarget(
+  username: string,
+): Promise<{ id: string; username: string; isPrivate: boolean } | null> {
+  try {
+    const json = await fetch(profileInfoUrlGenerator(username), IG_HEADERS).then(res => res.json());
+    return parseResolvedTarget(json);
+  } catch (e) {
+    console.error("resolveTarget failed for", username, e);
+    return null;
+  }
+}
