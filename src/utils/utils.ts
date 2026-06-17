@@ -174,9 +174,8 @@ export function unfollowUserUrlGenerator(idToUnfollow: string): string {
 
 export const IG_HEADERS: RequestInit = { headers: { "x-ig-app-id": IG_APP_ID }, credentials: "include" };
 
-export function followersUrlGenerator(maxId?: string): string {
-  const ds_user_id = getCookie("ds_user_id");
-  const base = `https://www.instagram.com/api/v1/friendships/${ds_user_id}/followers/?count=50`;
+export function followersUrlGenerator(targetId: string, maxId?: string): string {
+  const base = `https://www.instagram.com/api/v1/friendships/${targetId}/followers/?count=50`;
   return maxId ? `${base}&max_id=${encodeURIComponent(maxId)}` : base;
 }
 

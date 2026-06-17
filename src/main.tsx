@@ -361,12 +361,13 @@ function App() {
       let total = -1;
       let done = 0;
       let scrollCycle = 0;
+      const scanTargetId = getCookie("ds_user_id") ?? "";
 
       while (hasNext) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let json: any;
         try {
-          json = await fetch(followersUrlGenerator(maxId), IG_HEADERS).then(res => res.json());
+          json = await fetch(followersUrlGenerator(scanTargetId, maxId), IG_HEADERS).then(res => res.json());
         } catch (e) {
           console.error(e);
           break;
