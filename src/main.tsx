@@ -104,6 +104,7 @@ function App() {
       isLocalPreview && new URLSearchParams(location.search).get("preview") === "scanning"
         ? {
           status: "scanning",
+          mode: "self",
           page: 1,
           searchTerm: "",
           currentTab: "non_whitelisted",
@@ -160,6 +161,7 @@ function App() {
       const previewUsers = _getPreviewUsers();
       setState({
         status: "scanning",
+        mode: "self",
         page: 1,
         searchTerm: "",
         currentTab: "non_whitelisted",
@@ -177,6 +179,7 @@ function App() {
     const whitelistedResults = loadWhitelist();
     setState({
       status: "scanning",
+      mode: "self",
       page: 1,
       searchTerm: "",
       currentTab: "non_whitelisted",
