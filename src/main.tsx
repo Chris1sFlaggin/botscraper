@@ -32,6 +32,7 @@ import {
   mapApiUserToNode,
   parseEnrichment,
   IG_HEADERS,
+  resolveTarget,
 } from "./utils/utils";
 import { scoreTier1, scoreTier2 } from "./utils/bot-score";
 import { NotSearching } from "./components/NotSearching";
@@ -194,6 +195,47 @@ function App() {
     });
   };
 
+  const onScanTarget = async (rawUsername: string) => {
+    if (state.status !== "initial") {
+      return;
+    }
+    const username = rawUsername.trim().replace(/^@/, "");
+    if (username === "") {
+      alert("Inserisci uno username.");
+      return;
+    }
+    const target = await resolveTarget(username);
+    if (target === null) {
+      alert(`Profilo @${username} non trovato o risposta non valida.`);
+      return;
+    }
+    if (target.isPrivate) {
+      const go = confirm(
+        `@${username} è privato: i follower sono scansionabili solo se l'account loggato lo segue. Provo comunque?`,
+      );
+      if (!go) {
+        return;
+      }
+    }
+    const whitelistedResults = loadWhitelist();
+    setState({
+      status: "scanning",
+      mode: "target",
+      target: { id: target.id, username: target.username },
+      page: 1,
+      searchTerm: "",
+      currentTab: "non_whitelisted",
+      percentage: 0,
+      results: [],
+      selectedResults: [],
+      whitelistedResults,
+      filter: { minScore: 0 },
+      removalThreshold: DEFAULT_REMOVAL_THRESHOLD,
+      mutualIds: new Set<string>(),
+      isEnriching: false,
+    });
+  };
+
   // Display filter: hide results below this bot-score.
   const setMinScore = (minScore: number) => {
     if (state.status !== "scanning") {
@@ -340,21 +382,31 @@ function App() {
       if (state.status !== "scanning" || isLocalPreview) {
         return;
       }
+      if (state.mode === "import") {
+        return; // l'import non pagina i follower: ci pensa il verify effect (Task 6).
+      }
 
-      // 1) Pre-scan the account's *following* list (usually small) to build a mutual set.
+      const scanTargetId = state.mode === "target" && state.target
+        ? state.target.id
+        : (getCookie("ds_user_id") ?? "");
+
+      // 1) Pre-scan following per i mutual SOLO in self-mode (in target-mode i mutual del
+      //    target si gestiscono alla rimozione, dec. 2).
       const mutualIds = new Set<string>();
-      try {
-        let followUrl = urlGenerator();
-        let followHasNext = true;
-        while (followHasNext) {
-          const data = (await fetch(followUrl).then(res => res.json())).data.user.edge_follow;
-          data.edges.forEach((edge: { node: { id: string } }) => mutualIds.add(edge.node.id));
-          followHasNext = data.page_info.has_next_page;
-          followUrl = urlGenerator(data.page_info.end_cursor);
-          await sleep(800);
+      if (state.mode === "self") {
+        try {
+          let followUrl = urlGenerator();
+          let followHasNext = true;
+          while (followHasNext) {
+            const data = (await fetch(followUrl).then(res => res.json())).data.user.edge_follow;
+            data.edges.forEach((edge: { node: { id: string } }) => mutualIds.add(edge.node.id));
+            followHasNext = data.page_info.has_next_page;
+            followUrl = urlGenerator(data.page_info.end_cursor);
+            await sleep(800);
+          }
+        } catch (e) {
+          console.error("Following pre-scan failed; mutuals may not be excluded.", e);
         }
-      } catch (e) {
-        console.error("Following pre-scan failed; mutuals may not be excluded.", e);
       }
 
       // 2) Page through followers, score Tier 1 on each.
@@ -364,7 +416,6 @@ function App() {
       let total = -1;
       let done = 0;
       let scrollCycle = 0;
-      const scanTargetId = getCookie("ds_user_id") ?? "";
 
       while (hasNext) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -571,7 +622,7 @@ function App() {
   let markup: React.JSX.Element;
   switch (state.status) {
     case "initial":
-      markup = <NotSearching onScan={onScan}></NotSearching>;
+      markup = <NotSearching onScan={onScan} onScanTarget={onScanTarget}></NotSearching>;
       break;
 
     case "scanning": {

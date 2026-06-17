@@ -2,6 +2,7 @@ import React from 'react';
 
 interface NotSearchingProps {
   onScan?: () => void;
+  onScanTarget?: (username: string) => void;
 }
 
 export const NotSearching = ({onScan}: NotSearchingProps) => (
