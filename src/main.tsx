@@ -33,7 +33,10 @@ import {
   parseEnrichment,
   IG_HEADERS,
   resolveTarget,
+  friendshipShowUrlGenerator,
+  shouldRemoveAfterShow,
 } from "./utils/utils";
+import { parseRemovalList, bindCheck } from "./utils/removal-list";
 import { scoreTier1, scoreTier2 } from "./utils/bot-score";
 import { NotSearching } from "./components/NotSearching";
 import { State } from "./model/state";
@@ -234,6 +237,47 @@ function App() {
       mutualIds: new Set<string>(),
       isEnriching: false,
     });
+  };
+
+  const onImportList = (file: File) => {
+    if (state.status !== "initial") {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = (e.target?.result as string) ?? "";
+      const parsed = parseRemovalList(text);
+      if (!parsed.ok) {
+        alert(parsed.error);
+        return;
+      }
+      const bound = bindCheck(parsed.list, getCookie("ds_user_id"));
+      if (!bound.ok) {
+        alert(bound.error); // BLOCCO: wrong account must not proceed
+        return;
+      }
+      const whitelistedResults = loadWhitelist();
+      setState({
+        status: "scanning",
+        mode: "import",
+        target: parsed.list.target,
+        importedBots: parsed.list.bots,
+        isVerifying: true,
+        page: 1,
+        searchTerm: "",
+        currentTab: "non_whitelisted",
+        percentage: 0,
+        results: [],
+        selectedResults: [],
+        whitelistedResults,
+        filter: { minScore: 0 },
+        removalThreshold: DEFAULT_REMOVAL_THRESHOLD,
+        mutualIds: new Set<string>(),
+        isEnriching: false,
+      });
+    };
+    reader.onerror = () => alert("Lettura file fallita.");
+    reader.readAsText(file);
   };
 
   // Display filter: hide results below this bot-score.
@@ -544,6 +588,64 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status === "scanning" && state.isEnriching]);
 
+  // VERIFY (import mode): re-check each imported id via friendships/show before review.
+  useEffect(() => {
+    const verify = async () => {
+      if (state.status !== "scanning" || state.mode !== "import" || !state.isVerifying || isLocalPreview) {
+        return;
+      }
+      const bots = state.importedBots ?? [];
+      const whitelistIds = new Set(state.whitelistedResults.map(u => u.id));
+      const survivors: UserNode[] = [];
+      let i = 0;
+      for (const bot of bots) {
+        i += 1;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const show: any = await fetch(friendshipShowUrlGenerator(bot.id), IG_HEADERS).then(res => res.json());
+          const keep = shouldRemoveAfterShow(
+            { following: !!show?.following, followed_by: !!show?.followed_by },
+            whitelistIds.has(bot.id),
+          );
+          if (keep) {
+            survivors.push({
+              id: bot.id,
+              username: bot.username,
+              full_name: bot.full_name,
+              profile_pic_url: "",
+              is_private: false,
+              is_verified: false,
+              followed_by_viewer: false,
+              follows_viewer: true,
+              requested_by_viewer: false,
+              score: bot.score,
+              reasons: bot.reasons,
+            });
+          }
+        } catch (e) {
+          // Precision-first: in caso di dubbio NON rimuovere → salta.
+          console.error("friendships/show failed for", bot.username, e);
+        }
+        const pct = Math.min(99, Math.round((i / Math.max(bots.length, 1)) * 100));
+        setState(prev => (prev.status === "scanning" ? { ...prev, percentage: pct } : prev));
+        setToast({ show: true, text: `Verifica ${i}/${bots.length}` });
+        await sleep(TIME_BETWEEN_ENRICH + Math.floor(Math.random() * 1000));
+        if (i % 20 === 0) {
+          setToast({ show: true, text: "Pausa anti rate-limit..." });
+          await sleep(TIME_AFTER_TWENTY_ENRICH);
+        }
+      }
+      setState(prev =>
+        prev.status === "scanning"
+          ? { ...prev, isVerifying: false, percentage: 100, results: survivors, selectedResults: survivors }
+          : prev,
+      );
+      setToast({ show: true, text: `Verifica completa: ${survivors.length} da rimuovere` });
+    };
+    verify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status === "scanning" && state.mode === "import" && state.isVerifying]);
+
   // REMOVE: bulk remove_follower on the selected accounts, with anti-block delays.
   useEffect(() => {
     const remove = async () => {
@@ -622,7 +724,7 @@ function App() {
   let markup: React.JSX.Element;
   switch (state.status) {
     case "initial":
-      markup = <NotSearching onScan={onScan} onScanTarget={onScanTarget}></NotSearching>;
+      markup = <NotSearching onScan={onScan} onScanTarget={onScanTarget} onImportList={onImportList}></NotSearching>;
       break;
 
     case "scanning": {
