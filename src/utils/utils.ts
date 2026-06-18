@@ -1,5 +1,6 @@
 import { Enrichment, UserNode } from "../model/user";
 import { UNFOLLOWERS_PER_PAGE, WITHOUT_PROFILE_PICTURE_URL_IDS, IG_APP_ID } from "../constants/constants";
+import { buildRemovalList } from "./removal-list";
 import { ScanningTab } from "../model/scanning-tab";
 import { ScanningFilter } from "../model/scanning-filter";
 import { UnfollowLogEntry } from "../model/unfollow-log-entry";
@@ -252,4 +253,20 @@ export async function resolveTarget(
     console.error("resolveTarget failed for", username, e);
     return null;
   }
+}
+
+export function exportRemovalList(
+  target: { readonly id: string; readonly username: string },
+  bots: readonly UserNode[],
+): void {
+  const list = buildRemovalList(target, bots, new Date().toISOString());
+  const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `botscraper-removal-${target.username}-${new Date().toISOString().split("T")[0]}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }

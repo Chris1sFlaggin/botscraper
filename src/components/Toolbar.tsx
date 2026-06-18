@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useState } from "react";
 import { State } from "../model/state";
-import { assertUnreachable, copyListToClipboard, exportToCSV, exportToJSON, getCurrentPageUnfollowers, getUsersForDisplay } from "../utils/utils";
+import { assertUnreachable, copyListToClipboard, exportToCSV, exportToJSON, exportRemovalList, getCookie, getCurrentPageUnfollowers, getUsersForDisplay } from "../utils/utils";
 import { SettingMenu } from "./SettingMenu";
 import { SettingIcon } from "./icons/SettingIcon";
 import { Timings } from "../model/timings";
@@ -118,6 +118,21 @@ export const Toolbar = ({
             disabled={state.status !== "scanning"}
           >
             CSV
+          </button>
+          <button
+            className="copy-list"
+            title="Export removal list (bound to target)"
+            onClick={() => {
+              if (state.status !== "scanning") return;
+              const target = state.target ?? { id: getCookie("ds_user_id") ?? "", username: "self" };
+              exportRemovalList(
+                target,
+                getUsersForDisplay(state.results, state.whitelistedResults, state.currentTab, state.searchTerm, state.filter),
+              );
+            }}
+            disabled={state.status !== "scanning"}
+          >
+            Removal List
           </button>
           <button
             className="icon-button"
