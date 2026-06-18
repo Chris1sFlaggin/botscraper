@@ -125,10 +125,7 @@ export const Toolbar = ({
             onClick={() => {
               if (state.status !== "scanning") return;
               const target = state.target ?? { id: getCookie("ds_user_id") ?? "", username: "self" };
-              exportRemovalList(
-                target,
-                getUsersForDisplay(state.results, state.whitelistedResults, state.currentTab, state.searchTerm, state.filter),
-              );
+              exportRemovalList(target, state.selectedResults);
             }}
             disabled={state.status !== "scanning"}
           >
