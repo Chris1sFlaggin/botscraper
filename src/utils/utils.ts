@@ -259,12 +259,13 @@ export function exportRemovalList(
   target: { readonly id: string; readonly username: string },
   bots: readonly UserNode[],
 ): void {
-  const list = buildRemovalList(target, bots, new Date().toISOString());
+  const now = new Date().toISOString();
+  const list = buildRemovalList(target, bots, now);
   const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `botscraper-removal-${target.username}-${new Date().toISOString().split("T")[0]}.json`;
+  link.download = `botscraper-removal-${target.username}-${now.split("T")[0]}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
