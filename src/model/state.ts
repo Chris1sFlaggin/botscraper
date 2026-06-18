@@ -11,6 +11,10 @@ type ScanningState = {
   readonly target?: { readonly id: string; readonly username: string };
   readonly importedBots?: readonly RemovalBot[];
   readonly isVerifying?: boolean;
+  // Real follower total of the scanned profile (target mode), for an honest progress bar.
+  readonly knownTotal?: number;
+  // Optional cap: stop the scan after this many followers (0/undefined = unlimited).
+  readonly scanCap?: number;
   readonly page: number;
   readonly currentTab: ScanningTab;
   readonly searchTerm: string;

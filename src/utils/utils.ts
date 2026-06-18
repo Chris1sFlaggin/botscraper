@@ -224,7 +224,7 @@ export function friendshipShowUrlGenerator(id: string): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function parseResolvedTarget(json: any): { id: string; username: string; isPrivate: boolean } | null {
+export function parseResolvedTarget(json: any): { id: string; username: string; isPrivate: boolean; followerCount: number } | null {
   const user = json?.data?.user;
   if (!user || (user.id === undefined && user.pk === undefined)) {
     return null;
@@ -233,6 +233,9 @@ export function parseResolvedTarget(json: any): { id: string; username: string; 
     id: String(user.id ?? user.pk),
     username: user.username ?? "",
     isPrivate: !!user.is_private,
+    // Real follower total, used to seed an honest scan progress bar (web_profile_info exposes it
+    // even though the followers-list pages do not). -1 when absent.
+    followerCount: user.edge_followed_by?.count ?? -1,
   };
 }
 
@@ -245,7 +248,7 @@ export function shouldRemoveAfterShow(
 
 export async function resolveTarget(
   username: string,
-): Promise<{ id: string; username: string; isPrivate: boolean } | null> {
+): Promise<{ id: string; username: string; isPrivate: boolean; followerCount: number } | null> {
   try {
     const json = await fetch(profileInfoUrlGenerator(username), IG_HEADERS).then(res => res.json());
     return parseResolvedTarget(json);

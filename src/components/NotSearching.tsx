@@ -2,13 +2,19 @@ import React, { useState, useRef } from 'react';
 
 interface NotSearchingProps {
   onScan?: () => void;
-  onScanTarget?: (username: string) => void;
+  onScanTarget?: (username: string, cap?: number) => void;
   onImportList?: (file: File) => void;
 }
 
 export const NotSearching = ({ onScan, onScanTarget, onImportList }: NotSearchingProps) => {
   const [username, setUsername] = useState("");
+  const [cap, setCap] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const startTargetScan = () => {
+    const n = cap.trim() === "" ? undefined : Math.max(0, Math.floor(Number(cap)) || 0);
+    onScanTarget?.(username, n && n > 0 ? n : undefined);
+  };
 
   return (
     <section className="launch-screen">
@@ -33,9 +39,20 @@ export const NotSearching = ({ onScan, onScanTarget, onImportList }: NotSearchin
             placeholder="@public_profile"
             value={username}
             onChange={e => setUsername(e.currentTarget.value)}
-            onKeyDown={e => { if (e.key === "Enter" && onScanTarget) onScanTarget(username); }}
+            onKeyDown={e => { if (e.key === "Enter") startTargetScan(); }}
           />
-          <button className="button-secondary" onClick={() => onScanTarget?.(username)}>
+          <input
+            type="number"
+            min={0}
+            className="search-bar"
+            placeholder="max followers (vuoto = ∞)"
+            title="Stop after N followers. Leave empty for unlimited (scan all followers)."
+            value={cap}
+            onChange={e => setCap(e.currentTarget.value)}
+            onKeyDown={e => { if (e.key === "Enter") startTargetScan(); }}
+            style={{ maxWidth: 220 }}
+          />
+          <button className="button-secondary" onClick={startTargetScan}>
             Scan public profile
           </button>
         </div>

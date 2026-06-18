@@ -198,7 +198,7 @@ function App() {
     });
   };
 
-  const onScanTarget = async (rawUsername: string) => {
+  const onScanTarget = async (rawUsername: string, cap?: number) => {
     if (state.status !== "initial") {
       return;
     }
@@ -225,6 +225,8 @@ function App() {
       status: "scanning",
       mode: "target",
       target: { id: target.id, username: target.username },
+      knownTotal: target.followerCount,
+      scanCap: cap && cap > 0 ? cap : undefined,
       page: 1,
       searchTerm: "",
       currentTab: "non_whitelisted",
@@ -457,7 +459,12 @@ function App() {
       const results: UserNode[] = [];
       let maxId: string | undefined = undefined;
       let hasNext = true;
-      let total = -1;
+      // Honest progress: prefer the cap, else the profile's known follower total (target mode).
+      // Falls back to -1 (then json.user_count, then the creeping estimate) for self-scans.
+      const scanCap = state.scanCap && state.scanCap > 0 ? state.scanCap : 0;
+      let total = scanCap > 0
+        ? scanCap
+        : (state.knownTotal && state.knownTotal > 0 ? state.knownTotal : -1);
       let done = 0;
       let scrollCycle = 0;
 
@@ -482,6 +489,10 @@ function App() {
         done += apiUsers.length;
         maxId = json.next_max_id;
         hasNext = !!maxId;
+        // Optional cap: stop once we've scanned enough followers (0 = unlimited).
+        if (scanCap > 0 && done >= scanCap) {
+          hasNext = false;
+        }
 
         const pct = total > 0
           ? Math.min(99, Math.round((done / total) * 100))

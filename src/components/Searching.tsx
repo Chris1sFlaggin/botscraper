@@ -102,7 +102,7 @@ export const Searching = ({
 
           <div className="sidebar-stats metric-stack">
             <p><span>Displayed</span><strong>{usersForDisplay.length}</strong></p>
-            <p><span>Total scanned</span><strong>{state.results.length}</strong></p>
+            <p><span>Total scanned</span><strong>{state.results.length}{state.knownTotal && state.knownTotal > 0 ? ` / ${state.knownTotal}` : ""}</strong></p>
             <p><span>Bots ≥ {state.removalThreshold}</span><strong>{botCount}</strong></p>
             <p><span>Selected</span><strong>{state.selectedResults.length}</strong></p>
             <p className="whitelist-counter"><span>Whitelisted</span><strong>★ {state.whitelistedResults.length}</strong></p>

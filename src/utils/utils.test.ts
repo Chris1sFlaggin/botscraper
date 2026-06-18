@@ -28,9 +28,13 @@ describe("friendshipShowUrlGenerator", () => {
 });
 
 describe("parseResolvedTarget", () => {
-  it("extracts id/username/isPrivate from web_profile_info", () => {
+  it("extracts id/username/isPrivate/followerCount from web_profile_info", () => {
+    const json = { data: { user: { id: "777", username: "client", is_private: false, edge_followed_by: { count: 74000 } } } };
+    expect(parseResolvedTarget(json)).toEqual({ id: "777", username: "client", isPrivate: false, followerCount: 74000 });
+  });
+  it("defaults followerCount to -1 when the count is absent", () => {
     const json = { data: { user: { id: "777", username: "client", is_private: false } } };
-    expect(parseResolvedTarget(json)).toEqual({ id: "777", username: "client", isPrivate: false });
+    expect(parseResolvedTarget(json)?.followerCount).toBe(-1);
   });
   it("returns null when the user is absent", () => {
     expect(parseResolvedTarget({ data: {} })).toBeNull();
