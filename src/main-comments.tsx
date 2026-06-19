@@ -179,37 +179,51 @@ function App() {
       const post = (url: string, body: string) =>
         fetch(url, { headers, method: "POST", mode: "cors", credentials: "include", body });
 
-      // delete grouped by media
+      // group work upfront so we can report progress across deletes + author actions
       const byMedia = new Map<string, CommentNode[]>();
       for (const c of state.selectedResults) (byMedia.get(c.mediaId) ?? byMedia.set(c.mediaId, []).get(c.mediaId)!).push(c);
+      const deleteGroups = Array.from(byMedia);
+      const authorIds = state.authorAction !== "none"
+        ? Array.from(new Set(state.selectedResults.map(c => c.author.id)))
+        : [];
+      const totalUnits = deleteGroups.length + authorIds.length;
+      let unit = 0;
+      const bumpProgress = () => {
+        unit += 1;
+        const pct = totalUnits > 0 ? Math.min(99, Math.round((unit / totalUnits) * 100)) : 99;
+        setState(prev => (prev.status === "acting" ? { ...prev, percentage: pct } : prev));
+      };
+
+      // delete grouped by media
       const deleted = new Set<string>();
-      // es5 fix #3: Array.from for Map iteration
-      for (const [mediaId, comments] of Array.from(byMedia)) {
+      for (const [mediaId, comments] of deleteGroups) {
         try {
           const res = await post(bulkDeleteCommentsUrlGenerator(mediaId),
             `comment_ids_to_delete=${comments.map(c => c.id).join(",")}`);
-          const ok = res.ok && (await res.json().catch(() => ({})))?.status === "ok";
-          if (ok) comments.forEach(c => deleted.add(c.id));
-          else console.error("bulk_delete failed", mediaId, res.status);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const body: any = await res.json().catch(() => ({}));
+          if (res.ok && body?.status === "ok") comments.forEach(c => deleted.add(c.id));
+          else console.error("bulk_delete failed", mediaId, res.status, body);
         } catch (e) { console.error(e); }
+        bumpProgress();
         await sleep(4000);
       }
 
       // author action on unique authors
       const actioned = new Set<string>();
-      if (state.authorAction !== "none") {
-        // es5 fix #2: Array.from instead of [...new Set(...)]
-        const authorIds = Array.from(new Set(state.selectedResults.map(c => c.author.id)));
-        for (const id of authorIds) {
-          try {
-            let res: Response;
-            if (state.authorAction === "restrict") res = await post(restrictUrlGenerator(), `target_user_id=${id}`);
-            else if (state.authorAction === "block") res = await post(blockUrlGenerator(id), "");
-            else res = await post(removeFollowerUrlGenerator(id), "");
-            if (res.ok) actioned.add(id);
-          } catch (e) { console.error(e); }
-          await sleep(4000);
-        }
+      for (const id of authorIds) {
+        try {
+          let res: Response;
+          if (state.authorAction === "restrict") res = await post(restrictUrlGenerator(), `target_user_id=${id}`);
+          else if (state.authorAction === "block") res = await post(blockUrlGenerator(id), "");
+          else res = await post(removeFollowerUrlGenerator(id), "");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const body: any = await res.json().catch(() => ({}));
+          if (res.ok && body?.status === "ok") actioned.add(id);
+          else console.error("author action failed", state.authorAction, id, res.status, body);
+        } catch (e) { console.error(e); }
+        bumpProgress();
+        await sleep(4000);
       }
 
       setState(prev => prev.status === "acting" ? {
