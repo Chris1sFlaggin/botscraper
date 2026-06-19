@@ -10,7 +10,8 @@ export interface CommentScore {
 const URL_RE = /https?:\/\/|www\.|\.com|\.ru|\.net|t\.me|bit\.ly/i;
 const MENTION_RE = /@\w+/g;
 // Strip emoji/symbols/whitespace to see if any "real" text remains.
-const NON_TEXT_RE = /[\p{Extended_Pictographic}\p{Emoji_Presentation}‍️\s\W]/gu;
+// Uses \W + \s rather than Unicode property escapes (\p{}) to stay ES5-compatible.
+const NON_TEXT_RE = /[\W\s]/g;
 
 export function scoreCommentText(text: string): CommentScore {
   const reasons: string[] = [];
@@ -75,7 +76,7 @@ export function markCopypasta(nodes: readonly CommentNode[]): CommentNode[] {
     (authorsByText.get(key) ?? authorsByText.set(key, new Set()).get(key)!).add(n.author.id);
   }
   const copypastaKeys = new Set(
-    [...authorsByText.entries()]
+    Array.from(authorsByText.entries())
       .filter(([, authors]) => authors.size >= C.COPYPASTA_MIN_AUTHORS)
       .map(([key]) => key),
   );
