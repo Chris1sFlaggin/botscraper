@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreCommentText, combineCommentScore, getCommentsForDisplay, markCopypasta } from "./comment-score";
+import { scoreCommentText, combineCommentScore, getCommentsForDisplay, markCopypasta, scoreComment, refoldWithAuthorScore } from "./comment-score";
 import { CommentNode } from "../model/comment";
 import { UserNode } from "../model/user";
 
@@ -85,5 +85,34 @@ describe("markCopypasta", () => {
     });
     const out = markCopypasta([same("1"), same("2"), same("3")]);
     expect(out.some(c => c.reasons.includes("copypasta"))).toBe(false);
+  });
+});
+
+const mkComment = (over: { text?: string; authorId?: string; verified?: boolean; reasons?: string[]; score?: number } = {}): CommentNode => ({
+  id: "c", mediaId: "m", mediaCode: "C", text: over.text ?? "", createdAt: 0, likeCount: 0,
+  author: { id: over.authorId ?? "u1", username: "u", full_name: "", profile_pic_url: "https://scontent/x.jpg",
+    is_private: false, is_verified: over.verified ?? false, followed_by_viewer: false,
+    follows_viewer: true, requested_by_viewer: false },
+  score: over.score ?? 0, reasons: over.reasons ?? [],
+});
+
+describe("scoreComment", () => {
+  it("excludes verified authors", () => {
+    expect(scoreComment(mkComment({ text: "dm me for promo free followers", verified: true }), "owner").score).toBe(0);
+  });
+  it("excludes the scanned account's own comments", () => {
+    expect(scoreComment(mkComment({ text: "dm me for promo", authorId: "acct" }), "acct").score).toBe(0);
+  });
+  it("scores a normal flagged comment", () => {
+    expect(scoreComment(mkComment({ text: "dm me for promo", authorId: "bot1" }), "owner").score).toBeGreaterThanOrEqual(25);
+  });
+});
+
+describe("refoldWithAuthorScore", () => {
+  it("preserves an earned copypasta bonus", () => {
+    expect(refoldWithAuthorScore(mkComment({ text: "", reasons: ["copypasta"], score: 25 }), 0).score).toBe(25);
+  });
+  it("folds author score under the 30 cap", () => {
+    expect(refoldWithAuthorScore(mkComment({ text: "http://spam.ru link" }), 80).score).toBe(55);
   });
 });

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { render } from "react-dom";
 import "./styles.scss";
 
-import { INSTAGRAM_HOSTNAME, IG_APP_ID, DEFAULT_REMOVAL_THRESHOLD,
-  COMMENT_CANDIDATE_THRESHOLD, DEEP_SCAN_CAP, TIME_BETWEEN_ENRICH } from "./constants/constants";
+import { INSTAGRAM_HOSTNAME, IG_APP_ID, COMMENT_ACTION_THRESHOLD,
+  COMMENT_CANDIDATE_THRESHOLD, DEEP_SCAN_CAP, TIME_BETWEEN_ENRICH, TIME_AFTER_TWENTY_ENRICH } from "./constants/constants";
 import {
   getCookie, sleep, IG_HEADERS, resolveTarget, ownerMatches,
   userMediaUrlGenerator, mediaCommentsUrlGenerator, mapApiCommentToNode,
@@ -11,7 +11,7 @@ import {
   removeFollowerUrlGenerator, profileInfoUrlGenerator, parseEnrichment,
 } from "./utils/utils";
 import { scoreTier1, scoreTier2 } from "./utils/bot-score";
-import { scoreCommentText, combineCommentScore, markCopypasta } from "./utils/comment-score";
+import { scoreComment, refoldWithAuthorScore, markCopypasta } from "./utils/comment-score";
 import { loadCommentWhitelist, saveCommentWhitelist } from "./utils/whitelist-manager";
 import { exportCommentsJSON, exportCommentsCSV } from "./utils/comment-export";
 import { Toast } from "./components/Toast";
@@ -19,16 +19,6 @@ import { CommentReview } from "./components/CommentReview";
 import { CommentState } from "./model/comment-state";
 import { CommentNode, AuthorAction } from "./model/comment";
 import { UserNode } from "./model/user";
-
-const score = (node: CommentNode): CommentNode => {
-  const text = scoreCommentText(node.text);
-  const author = scoreTier1(node.author, false);
-  return {
-    ...node,
-    score: combineCommentScore(text.score, author.score),
-    reasons: [...text.reasons, ...author.reasons],
-  };
-};
 
 function App() {
   const [state, setState] = useState<CommentState>({ status: "initial" });
@@ -53,7 +43,7 @@ function App() {
       maxCommentsPerPost: maxComments.trim() === "" ? undefined : Math.max(0, Math.floor(Number(maxComments)) || 0),
       postsScanned: 0, totalPosts: -1, percentage: 0,
       results: [], selectedResults: [], whitelistAuthors: loadCommentWhitelist(),
-      searchTerm: "", removalThreshold: DEFAULT_REMOVAL_THRESHOLD,
+      searchTerm: "", removalThreshold: COMMENT_ACTION_THRESHOLD,
       authorAction: "none", isEnriching: false,
     });
   };
@@ -93,9 +83,17 @@ function App() {
           let json: any;
           try { json = await fetch(mediaCommentsUrlGenerator(m.id, minId), IG_HEADERS).then(r => r.json()); }
           catch (e) { console.error(e); break; }
-          for (const raw of (json.comments ?? [])) {
-            all.push(score(mapApiCommentToNode(raw, m.id, m.code)));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const ingest = (raw: any): void => {
+            all.push(scoreComment(mapApiCommentToNode(raw, m.id, m.code), state.target.id));
             count++;
+          };
+          for (const raw of (json.comments ?? [])) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ingest(raw);
+            // include replies when the payload carries them (confirmed default a)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const reply of (raw.child_comments ?? [])) ingest(reply);
             if (perPost > 0 && count >= perPost) break;
           }
           minId = json.next_min_id ?? json.next_max_id;
@@ -145,14 +143,13 @@ function App() {
         } catch (e) { console.error("enrich failed", a.username, e); }
         setToast({ show: true, text: `Deep-scan autori ${i}/${authors.length}` });
         await sleep(TIME_BETWEEN_ENRICH + Math.floor(Math.random() * 1000));
+        if (i % 20 === 0) { setToast({ show: true, text: "Pausa anti rate-limit..." }); await sleep(TIME_AFTER_TWENTY_ENRICH); }
       }
       setState(prev => {
         if (prev.status !== "scanning") return prev;
         const results = prev.results.map(c => {
           const a = enriched.get(c.author.id);
-          if (a === undefined) return c;
-          const text = scoreCommentText(c.text);
-          return { ...c, score: combineCommentScore(text.score, a) };
+          return a === undefined ? c : refoldWithAuthorScore(c, a);
         });
         const wl = new Set(prev.whitelistAuthors.map(u => u.id));
         return {
@@ -206,6 +203,7 @@ function App() {
           else console.error("bulk_delete failed", mediaId, res.status, body);
         } catch (e) { console.error(e); }
         bumpProgress();
+        if (unit % 10 === 0) { setToast({ show: true, text: "Pausa anti rate-limit..." }); await sleep(TIME_AFTER_TWENTY_ENRICH); }
         await sleep(4000);
       }
 
@@ -223,6 +221,7 @@ function App() {
           else console.error("author action failed", state.authorAction, id, res.status, body);
         } catch (e) { console.error(e); }
         bumpProgress();
+        if (unit % 10 === 0) { setToast({ show: true, text: "Pausa anti rate-limit..." }); await sleep(TIME_AFTER_TWENTY_ENRICH); }
         await sleep(4000);
       }
 

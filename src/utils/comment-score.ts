@@ -1,6 +1,7 @@
 import { CommentNode } from "../model/comment";
 import { SPAM_KEYWORDS } from "../constants/constants";
 import * as C from "../constants/constants";
+import { scoreTier1 } from "./bot-score";
 
 export interface CommentScore {
   readonly score: number;
@@ -9,8 +10,8 @@ export interface CommentScore {
 
 const URL_RE = /https?:\/\/|www\.|\.com|\.ru|\.net|t\.me|bit\.ly/i;
 const MENTION_RE = /@\w+/g;
-// Strip emoji/symbols/whitespace to see if any "real" text remains.
-// Uses \W + \s rather than Unicode property escapes (\p{}) to stay ES5-compatible.
+// Strip non-word chars to see if any real text remains. \W already covers emoji,
+// symbols and punctuation; \s is redundant inside \W but kept for legibility.
 const NON_TEXT_RE = /[\W\s]/g;
 
 export function scoreCommentText(text: string): CommentScore {
@@ -90,4 +91,30 @@ export function markCopypasta(nodes: readonly CommentNode[]): CommentNode[] {
       reasons: [...n.reasons, "copypasta"],
     };
   });
+}
+
+// Full per-comment score with hard exclusions: verified authors and the scanned
+// account's own comments are never spam (precision-first).
+export function scoreComment(node: CommentNode, ownerId: string): CommentNode {
+  if (node.author.is_verified || node.author.id === ownerId) {
+    return { ...node, score: 0, reasons: [] };
+  }
+  const text = scoreCommentText(node.text);
+  const author = scoreTier1(node.author, false);
+  return {
+    ...node,
+    score: combineCommentScore(text.score, author.score),
+    reasons: [...text.reasons, ...author.reasons],
+  };
+}
+
+// Re-fold a comment's score with a deep-scanned author score, preserving any
+// copypasta bonus the comment already earned (deep-scan must never drop it).
+export function refoldWithAuthorScore(comment: CommentNode, authorScore: number): CommentNode {
+  const text = scoreCommentText(comment.text);
+  let score = combineCommentScore(text.score, authorScore);
+  if (comment.reasons.includes("copypasta")) {
+    score = Math.min(100, score + C.COMMENT_W_COPYPASTA);
+  }
+  return { ...comment, score };
 }
