@@ -1,2 +1,324 @@
-// Placeholder — full implementation in Task 8.
-export {};
+import React, { useEffect, useState } from "react";
+import { render } from "react-dom";
+import "./styles.scss";
+
+import { INSTAGRAM_HOSTNAME, IG_APP_ID, DEFAULT_REMOVAL_THRESHOLD,
+  COMMENT_CANDIDATE_THRESHOLD, DEEP_SCAN_CAP, TIME_BETWEEN_ENRICH } from "./constants/constants";
+import {
+  getCookie, sleep, IG_HEADERS, resolveTarget, ownerMatches,
+  userMediaUrlGenerator, mediaCommentsUrlGenerator, mapApiCommentToNode,
+  bulkDeleteCommentsUrlGenerator, restrictUrlGenerator, blockUrlGenerator,
+  removeFollowerUrlGenerator, profileInfoUrlGenerator, parseEnrichment,
+} from "./utils/utils";
+import { scoreTier1, scoreTier2 } from "./utils/bot-score";
+import { scoreCommentText, combineCommentScore, markCopypasta } from "./utils/comment-score";
+import { loadCommentWhitelist, saveCommentWhitelist } from "./utils/whitelist-manager";
+import { exportCommentsJSON, exportCommentsCSV } from "./utils/comment-export";
+import { Toast } from "./components/Toast";
+import { CommentReview } from "./components/CommentReview";
+import { CommentState } from "./model/comment-state";
+import { CommentNode, AuthorAction } from "./model/comment";
+import { UserNode } from "./model/user";
+
+const score = (node: CommentNode): CommentNode => {
+  const text = scoreCommentText(node.text);
+  const author = scoreTier1(node.author, false);
+  return {
+    ...node,
+    score: combineCommentScore(text.score, author.score),
+    reasons: [...text.reasons, ...author.reasons],
+  };
+};
+
+function App() {
+  const [state, setState] = useState<CommentState>({ status: "initial" });
+  const [toast, setToast] = useState<{ show: boolean; text: string }>({ show: false, text: "" });
+  const [username, setUsername] = useState("");
+  const [maxPosts, setMaxPosts] = useState("");
+  const [maxComments, setMaxComments] = useState("");
+
+  const onScan = async () => {
+    if (state.status !== "initial") return;
+    const name = username.trim().replace(/^@/, "");
+    if (name === "") { alert("Inserisci uno username."); return; }
+    const target = await resolveTarget(name);
+    if (target === null) { alert(`Profilo @${name} non trovato.`); return; }
+    const isOwner = ownerMatches(getCookie("ds_user_id"), target.id);
+    if (!isOwner && !confirm(`Non sei loggato come @${name}. Posso solo scansionare ed esportare (niente delete/azioni). Continuo?`)) return;
+    setState({
+      status: "scanning",
+      target: { id: target.id, username: target.username },
+      isOwner,
+      maxPosts: maxPosts.trim() === "" ? undefined : Math.max(0, Math.floor(Number(maxPosts)) || 0),
+      maxCommentsPerPost: maxComments.trim() === "" ? undefined : Math.max(0, Math.floor(Number(maxComments)) || 0),
+      postsScanned: 0, totalPosts: -1, percentage: 0,
+      results: [], selectedResults: [], whitelistAuthors: loadCommentWhitelist(),
+      searchTerm: "", removalThreshold: DEFAULT_REMOVAL_THRESHOLD,
+      authorAction: "none", isEnriching: false,
+    });
+  };
+
+  // SCAN: page media → page comments per media → score → copypasta → auto-select >= threshold.
+  useEffect(() => {
+    const scan = async () => {
+      if (state.status !== "scanning" || state.percentage > 0 || state.results.length > 0) return;
+      const cap = state.maxPosts && state.maxPosts > 0 ? state.maxPosts : 0;
+      const perPost = state.maxCommentsPerPost && state.maxCommentsPerPost > 0 ? state.maxCommentsPerPost : 0;
+
+      // 1) collect media ids.
+      const media: { id: string; code: string }[] = [];
+      let mediaMaxId: string | undefined;
+      let moreMedia = true;
+      while (moreMedia) {
+        let json: any;
+        try { json = await fetch(userMediaUrlGenerator(state.target.id, mediaMaxId), IG_HEADERS).then(r => r.json()); }
+        catch (e) { console.error(e); break; }
+        for (const item of (json.items ?? [])) {
+          media.push({ id: String(item.pk ?? item.id), code: item.code ?? "" });
+          if (cap > 0 && media.length >= cap) break;
+        }
+        mediaMaxId = json.next_max_id;
+        moreMedia = !!mediaMaxId && (cap === 0 || media.length < cap);
+        await sleep(1200);
+      }
+
+      // 2) page comments per media, score as we go.
+      const all: CommentNode[] = [];
+      let processed = 0;
+      for (const m of media) {
+        let minId: string | undefined;
+        let count = 0;
+        let more = true;
+        while (more) {
+          let json: any;
+          try { json = await fetch(mediaCommentsUrlGenerator(m.id, minId), IG_HEADERS).then(r => r.json()); }
+          catch (e) { console.error(e); break; }
+          for (const raw of (json.comments ?? [])) {
+            all.push(score(mapApiCommentToNode(raw, m.id, m.code)));
+            count++;
+            if (perPost > 0 && count >= perPost) break;
+          }
+          minId = json.next_min_id ?? json.next_max_id;
+          more = !!minId && (perPost === 0 || count < perPost);
+          await sleep(1500);
+        }
+        processed++;
+        const pct = Math.min(99, Math.round((processed / Math.max(media.length, 1)) * 100));
+        setState(prev => prev.status === "scanning"
+          ? { ...prev, postsScanned: processed, totalPosts: media.length, percentage: pct, results: markCopypasta(all) }
+          : prev);
+        setToast({ show: true, text: `Post ${processed}/${media.length} — ${all.length} commenti` });
+      }
+
+      const scored = markCopypasta(all);
+      setState(prev => {
+        if (prev.status !== "scanning") return prev;
+        const wl = new Set(prev.whitelistAuthors.map(u => u.id));
+        const selected = scored.filter(c => c.score >= prev.removalThreshold && !wl.has(c.author.id));
+        return { ...prev, percentage: 100, results: scored, selectedResults: selected };
+      });
+      setToast({ show: true, text: "Scan completato!" });
+    };
+    scan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
+
+  // DEEP-SCAN authors: enrich top candidates and re-fold author score.
+  useEffect(() => {
+    const deep = async () => {
+      if (state.status !== "scanning" || !state.isEnriching) return;
+      const seen = new Map<string, UserNode>();
+      for (const c of state.results) {
+        if (c.score >= COMMENT_CANDIDATE_THRESHOLD && !seen.has(c.author.id)) seen.set(c.author.id, c.author);
+      }
+      // es5 fix #1: Array.from instead of [...seen.values()]
+      const authors = Array.from(seen.values()).slice(0, DEEP_SCAN_CAP);
+      let i = 0;
+      const enriched = new Map<string, number>();
+      for (const a of authors) {
+        i++;
+        try {
+          const json: any = await fetch(profileInfoUrlGenerator(a.username), IG_HEADERS).then(r => r.json());
+          const base = scoreTier1(a, false);
+          const r = scoreTier2({ score: base.score, reasons: [...base.reasons], isCandidate: true }, parseEnrichment(json?.data?.user));
+          enriched.set(a.id, r.score);
+        } catch (e) { console.error("enrich failed", a.username, e); }
+        setToast({ show: true, text: `Deep-scan autori ${i}/${authors.length}` });
+        await sleep(TIME_BETWEEN_ENRICH + Math.floor(Math.random() * 1000));
+      }
+      setState(prev => {
+        if (prev.status !== "scanning") return prev;
+        const results = prev.results.map(c => {
+          const a = enriched.get(c.author.id);
+          if (a === undefined) return c;
+          const text = scoreCommentText(c.text);
+          return { ...c, score: combineCommentScore(text.score, a) };
+        });
+        const wl = new Set(prev.whitelistAuthors.map(u => u.id));
+        return {
+          ...prev, isEnriching: false, results,
+          selectedResults: results.filter(c => c.score >= prev.removalThreshold && !wl.has(c.author.id)),
+        };
+      });
+      setToast({ show: true, text: "Deep-scan completato!" });
+    };
+    deep();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status === "scanning" && state.isEnriching]);
+
+  // ACT: group deletes by media (bulk_delete), then per-author action, with anti-block delays.
+  useEffect(() => {
+    const act = async () => {
+      if (state.status !== "acting") return;
+      const csrftoken = getCookie("csrftoken");
+      if (csrftoken === null) { alert("csrftoken mancante."); return; }
+      const headers = {
+        "content-type": "application/x-www-form-urlencoded",
+        "x-csrftoken": csrftoken, "x-ig-app-id": IG_APP_ID, "x-requested-with": "XMLHttpRequest",
+      };
+      const post = (url: string, body: string) =>
+        fetch(url, { headers, method: "POST", mode: "cors", credentials: "include", body });
+
+      // delete grouped by media
+      const byMedia = new Map<string, CommentNode[]>();
+      for (const c of state.selectedResults) (byMedia.get(c.mediaId) ?? byMedia.set(c.mediaId, []).get(c.mediaId)!).push(c);
+      const deleted = new Set<string>();
+      // es5 fix #3: Array.from for Map iteration
+      for (const [mediaId, comments] of Array.from(byMedia)) {
+        try {
+          const res = await post(bulkDeleteCommentsUrlGenerator(mediaId),
+            `comment_ids_to_delete=${comments.map(c => c.id).join(",")}`);
+          const ok = res.ok && (await res.json().catch(() => ({})))?.status === "ok";
+          if (ok) comments.forEach(c => deleted.add(c.id));
+          else console.error("bulk_delete failed", mediaId, res.status);
+        } catch (e) { console.error(e); }
+        await sleep(4000);
+      }
+
+      // author action on unique authors
+      const actioned = new Set<string>();
+      if (state.authorAction !== "none") {
+        // es5 fix #2: Array.from instead of [...new Set(...)]
+        const authorIds = Array.from(new Set(state.selectedResults.map(c => c.author.id)));
+        for (const id of authorIds) {
+          try {
+            let res: Response;
+            if (state.authorAction === "restrict") res = await post(restrictUrlGenerator(), `target_user_id=${id}`);
+            else if (state.authorAction === "block") res = await post(blockUrlGenerator(id), "");
+            else res = await post(removeFollowerUrlGenerator(id), "");
+            if (res.ok) actioned.add(id);
+          } catch (e) { console.error(e); }
+          await sleep(4000);
+        }
+      }
+
+      setState(prev => prev.status === "acting" ? {
+        ...prev, percentage: 100,
+        actionLog: prev.selectedResults.map(c => ({
+          comment: c, commentDeleted: deleted.has(c.id), authorActioned: actioned.has(c.author.id),
+        })),
+      } : prev);
+      setToast({ show: true, text: "Azioni completate." });
+    };
+    act();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
+
+  // ---- handlers ----
+  const onToggle = (checked: boolean, c: CommentNode) => {
+    if (state.status !== "scanning") return;
+    setState({ ...state, selectedResults: checked
+      ? [...state.selectedResults, c]
+      : state.selectedResults.filter(x => x.id !== c.id) });
+  };
+  const onWhitelist = (a: UserNode) => {
+    if (state.status !== "scanning") return;
+    const exists = state.whitelistAuthors.some(u => u.id === a.id);
+    const next = exists ? state.whitelistAuthors.filter(u => u.id !== a.id) : [...state.whitelistAuthors, a];
+    saveCommentWhitelist(next);
+    setState({ ...state, whitelistAuthors: next,
+      selectedResults: exists ? state.selectedResults : state.selectedResults.filter(c => c.author.id !== a.id) });
+  };
+  const onThreshold = (n: number) => {
+    if (state.status !== "scanning") return;
+    const wl = new Set(state.whitelistAuthors.map(u => u.id));
+    setState({ ...state, removalThreshold: n,
+      selectedResults: state.results.filter(c => c.score >= n && !wl.has(c.author.id)) });
+  };
+  const onApply = () => {
+    if (state.status !== "scanning" || !state.isOwner) return;
+    if (!confirm(`Confermi: elimina ${state.selectedResults.length} commenti` +
+      (state.authorAction !== "none" ? ` + azione "${state.authorAction}" sugli autori?` : "?"))) return;
+    setState({ status: "acting", authorAction: state.authorAction, selectedResults: state.selectedResults, percentage: 0, actionLog: [] });
+  };
+
+  let markup: React.JSX.Element;
+  if (state.status === "initial") {
+    markup = (
+      <section className="launch-screen">
+        <div className="launch-copy">
+          <span className="eyebrow">Comment bot/spam cleanup</span>
+          <h1>Scan comments across a profile.</h1>
+          <p>Enter the account you manage. Scans every post's comments, scores bot/spam, then review and delete (and optionally restrict/block authors). Not your account → export only.</p>
+          <div className="launch-actions">
+            <input className="search-bar" placeholder="@account" value={username}
+              onChange={e => setUsername(e.currentTarget.value)} />
+            <input className="search-bar" type="number" min={0} placeholder="max posts (∞)" value={maxPosts}
+              onChange={e => setMaxPosts(e.currentTarget.value)} style={{ maxWidth: 160 }} />
+            <input className="search-bar" type="number" min={0} placeholder="max comments/post (∞)" value={maxComments}
+              onChange={e => setMaxComments(e.currentTarget.value)} style={{ maxWidth: 200 }} />
+            <button className="run-scan" onClick={onScan}>Scan comments</button>
+          </div>
+        </div>
+      </section>
+    );
+  } else if (state.status === "scanning") {
+    markup = (
+      <CommentReview
+        results={state.results}
+        selectedIds={new Set(state.selectedResults.map(c => c.id))}
+        whitelistIds={new Set(state.whitelistAuthors.map(u => u.id))}
+        removalThreshold={state.removalThreshold}
+        percentage={state.percentage}
+        isOwner={state.isOwner}
+        authorAction={state.authorAction}
+        searchTerm={state.searchTerm}
+        isEnriching={state.isEnriching}
+        onSearch={t => setState({ ...state, searchTerm: t })}
+        onThreshold={onThreshold}
+        onDeepScan={() => setState({ ...state, isEnriching: true })}
+        onToggle={onToggle}
+        onWhitelist={onWhitelist}
+        onAuthorAction={(a: AuthorAction) => setState({ ...state, authorAction: a })}
+        onApply={onApply}
+        onExportJSON={() => exportCommentsJSON(state.target, state.selectedResults)}
+        onExportCSV={() => exportCommentsCSV(state.selectedResults)}
+      />
+    );
+  } else {
+    const ok = state.actionLog.filter(e => e.commentDeleted).length;
+    markup = (
+      <section className="results-container column">
+        <div className="badge">Applying… {state.percentage}%</div>
+        {state.percentage >= 100 && <p className="p-medium">Deleted {ok}/{state.actionLog.length} comments.</p>}
+      </section>
+    );
+  }
+
+  return (
+    <main id="main" role="main" className="iu">
+      <section className="overlay">
+        {markup}
+        {toast.show && <Toast show={toast.show} message={toast.text} onClose={() => setToast({ show: false, text: "" })} />}
+      </section>
+    </main>
+  );
+}
+
+if (location.hostname !== INSTAGRAM_HOSTNAME) {
+  alert("Can be used only on Instagram routes");
+} else {
+  document.title = "kura — comment scanner";
+  document.body.innerHTML = "";
+  render(<App />, document.body);
+}
