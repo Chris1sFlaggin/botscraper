@@ -82,3 +82,10 @@ export const COMMENT_SPAM_PHRASES = [
 ];
 // Low-value one-liners; only flagged when the whole comment is essentially just this.
 export const COMMENT_GENERIC_PHRASES = ["nice", "cool", "wow", "first", "follow me", "follow back"];
+
+// Comment-scan anti-block pacing. Default post cap stops "scan all posts" from
+// running unbounded (the read-rate-limit foot-gun); long pauses break up the
+// GET flood, mirroring the follower scan's periodic cooldown.
+export const DEFAULT_SCAN_POST_CAP = 20;
+export const SCAN_LONG_PAUSE_EVERY_POSTS = 10;
+export const SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES = 20;

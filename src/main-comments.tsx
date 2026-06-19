@@ -3,7 +3,8 @@ import { render } from "react-dom";
 import "./styles.scss";
 
 import { INSTAGRAM_HOSTNAME, IG_APP_ID, COMMENT_ACTION_THRESHOLD,
-  COMMENT_CANDIDATE_THRESHOLD, DEEP_SCAN_CAP, TIME_BETWEEN_ENRICH, TIME_AFTER_TWENTY_ENRICH } from "./constants/constants";
+  COMMENT_CANDIDATE_THRESHOLD, DEEP_SCAN_CAP, TIME_BETWEEN_ENRICH, TIME_AFTER_TWENTY_ENRICH,
+  DEFAULT_SCAN_POST_CAP, SCAN_LONG_PAUSE_EVERY_POSTS, SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES } from "./constants/constants";
 import {
   getCookie, sleep, IG_HEADERS, resolveTarget, ownerMatches,
   userMediaUrlGenerator, mediaCommentsUrlGenerator, mapApiCommentToNode,
@@ -52,7 +53,9 @@ function App() {
   useEffect(() => {
     const scan = async () => {
       if (state.status !== "scanning" || state.percentage > 0 || state.results.length > 0) return;
-      const cap = state.maxPosts && state.maxPosts > 0 ? state.maxPosts : 0;
+      // Empty input → a finite default cap, not unlimited: "scan all posts" with no
+      // cap is the read-rate-limit foot-gun. Type a bigger number to go further.
+      const cap = state.maxPosts && state.maxPosts > 0 ? state.maxPosts : DEFAULT_SCAN_POST_CAP;
       const perPost = state.maxCommentsPerPost && state.maxCommentsPerPost > 0 ? state.maxCommentsPerPost : 0;
 
       // 1) collect media ids.
@@ -75,6 +78,7 @@ function App() {
       // 2) page comments per media, score as we go.
       const all: CommentNode[] = [];
       let processed = 0;
+      let commentPages = 0;
       for (const m of media) {
         let minId: string | undefined;
         let count = 0;
@@ -99,6 +103,11 @@ function App() {
           minId = json.next_min_id ?? json.next_max_id;
           more = !!minId && (perPost === 0 || count < perPost);
           await sleep(1500);
+          commentPages++;
+          if (commentPages % SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES === 0) {
+            setToast({ show: true, text: "Pausa anti rate-limit..." });
+            await sleep(TIME_AFTER_TWENTY_ENRICH);
+          }
         }
         processed++;
         const pct = Math.min(99, Math.round((processed / Math.max(media.length, 1)) * 100));
@@ -106,6 +115,10 @@ function App() {
           ? { ...prev, postsScanned: processed, totalPosts: media.length, percentage: pct, results: markCopypasta(all) }
           : prev);
         setToast({ show: true, text: `Post ${processed}/${media.length} — ${all.length} commenti` });
+        if (processed % SCAN_LONG_PAUSE_EVERY_POSTS === 0) {
+          setToast({ show: true, text: "Pausa anti rate-limit (post)..." });
+          await sleep(TIME_AFTER_TWENTY_ENRICH);
+        }
       }
 
       const scored = markCopypasta(all);
@@ -276,7 +289,7 @@ function App() {
           <div className="launch-actions">
             <input className="search-bar" placeholder="@account" value={username}
               onChange={e => setUsername(e.currentTarget.value)} />
-            <input className="search-bar" type="number" min={0} placeholder="max posts (∞)" value={maxPosts}
+            <input className="search-bar" type="number" min={0} placeholder="max posts (default 20)" value={maxPosts}
               onChange={e => setMaxPosts(e.currentTarget.value)} style={{ maxWidth: 160 }} />
             <input className="search-bar" type="number" min={0} placeholder="max comments/post (∞)" value={maxComments}
               onChange={e => setMaxComments(e.currentTarget.value)} style={{ maxWidth: 200 }} />
