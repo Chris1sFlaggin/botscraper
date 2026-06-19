@@ -5,6 +5,7 @@ import { ScanningTab } from "../model/scanning-tab";
 import { ScanningFilter } from "../model/scanning-filter";
 import { UnfollowLogEntry } from "../model/unfollow-log-entry";
 import { UnfollowFilter } from "../model/unfollow-filter";
+import { CommentNode } from "../model/comment";
 
 export async function copyListToClipboard(nonFollowersList: readonly UserNode[]): Promise<void> {
   const sortedList = [...nonFollowersList].sort((a, b) => (a.username > b.username ? 1 : -1));
@@ -273,4 +274,45 @@ export function exportRemovalList(
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+export function userMediaUrlGenerator(userId: string, maxId?: string): string {
+  const base = `https://www.instagram.com/api/v1/feed/user/${userId}/?count=33`;
+  return maxId ? `${base}&max_id=${encodeURIComponent(maxId)}` : base;
+}
+
+export function mediaCommentsUrlGenerator(mediaId: string, minId?: string): string {
+  const base = `https://www.instagram.com/api/v1/media/${mediaId}/comments/?can_support_threading=true&count=50`;
+  return minId ? `${base}&min_id=${encodeURIComponent(minId)}` : base;
+}
+
+export function bulkDeleteCommentsUrlGenerator(mediaId: string): string {
+  return `https://www.instagram.com/api/v1/media/${mediaId}/comments/bulk_delete/`;
+}
+
+export function restrictUrlGenerator(): string {
+  return `https://www.instagram.com/api/v1/web/restrict_action/restrict/`;
+}
+
+export function blockUrlGenerator(userId: string): string {
+  return `https://www.instagram.com/api/v1/web/friendships/${userId}/block/`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function mapApiCommentToNode(c: any, mediaId: string, mediaCode: string): CommentNode {
+  return {
+    id: String(c.pk ?? c.id ?? ""),
+    mediaId,
+    mediaCode,
+    text: c.text ?? "",
+    createdAt: Number(c.created_at ?? 0),
+    likeCount: Number(c.comment_like_count ?? 0),
+    author: mapApiUserToNode(c.user ?? {}),
+    score: 0,
+    reasons: [],
+  };
+}
+
+export function ownerMatches(dsUserId: string | null, targetId: string): boolean {
+  return dsUserId !== null && dsUserId === targetId;
 }
