@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/main.tsx',
+    entry: { dist: './src/main.tsx', comments: './src/main-comments.tsx' },
     module: {
         rules: [
             {
@@ -30,7 +30,7 @@ module.exports = {
         },
     },
     output: {
-        filename: 'dist.js',
+        filename: '[name].js',
         path: path.resolve(__dirname, 'dist'),
     },
     devServer: {
