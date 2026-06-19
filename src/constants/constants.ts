@@ -56,3 +56,29 @@ export const SPAM_KEYWORDS = [
 export const FINSTA_KEYWORDS = [
   "privato", "private", "priv", "prv", "pvt", "finsta", "fake", "spam",
 ];
+
+// --- COMMENT SCORING ---
+export const COMMENT_WHITELIST_STORAGE_KEY = "cs_comment-whitelist";
+
+export const COMMENT_W_LINK = 25;
+export const COMMENT_W_SPAM_PHRASE = 25;
+export const COMMENT_W_MENTION_SPAM = 20;
+export const COMMENT_W_COPYPASTA = 25;
+export const COMMENT_W_EMOJI_ONLY = 15;
+export const COMMENT_W_GENERIC = 10;
+export const COMMENT_W_CAPS = 10;
+
+export const COMMENT_AUTHOR_CAP = 30;
+export const COMMENT_CANDIDATE_THRESHOLD = 25;
+export const COMMENT_ACTION_THRESHOLD = 60;
+
+export const COMMENT_MENTION_SPAM_MIN = 3;
+export const COPYPASTA_MIN_AUTHORS = 3;
+
+// Promo/spam phrases common in comment spam (in addition to SPAM_KEYWORDS).
+export const COMMENT_SPAM_PHRASES = [
+  "check my page", "check my profile", "dm me", "dm for promo", "gain followers",
+  "buy followers", "free followers", "follow me", "follow back", "promo", "click my bio",
+];
+// Low-value one-liners; only flagged when the whole comment is essentially just this.
+export const COMMENT_GENERIC_PHRASES = ["nice", "cool", "wow", "first", "follow me", "follow back"];
