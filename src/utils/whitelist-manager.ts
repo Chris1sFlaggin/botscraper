@@ -1,6 +1,8 @@
 import { UserNode } from "../model/user";
 import { Timings } from "../model/timings";
-import { WHITELISTED_RESULTS_STORAGE_KEY, TIMINGS_STORAGE_KEY } from "../constants/constants";
+import {
+  WHITELISTED_RESULTS_STORAGE_KEY, TIMINGS_STORAGE_KEY, COMMENT_WHITELIST_STORAGE_KEY,
+} from "../constants/constants";
 
 /**
  * Export whitelist to a JSON file
@@ -108,6 +110,27 @@ export const mergeWhitelists = (
   const existingIds = new Set(existing.map(user => user.id));
   const uniqueImported = imported.filter(user => !existingIds.has(user.id));
   return [...existing, ...uniqueImported];
+};
+
+/**
+ * Check if an author is whitelisted by ID
+ */
+export const isAuthorWhitelisted = (authorId: string, whitelist: readonly UserNode[]): boolean =>
+  whitelist.some(u => u.id === authorId);
+
+/**
+ * Load comment whitelist from localStorage
+ */
+export const loadCommentWhitelist = (): readonly UserNode[] => {
+  const raw = localStorage.getItem(COMMENT_WHITELIST_STORAGE_KEY);
+  return raw === null ? [] : JSON.parse(raw);
+};
+
+/**
+ * Save comment whitelist to localStorage
+ */
+export const saveCommentWhitelist = (authors: readonly UserNode[]): void => {
+  localStorage.setItem(COMMENT_WHITELIST_STORAGE_KEY, JSON.stringify(authors));
 };
 
 const isTimings = (value: unknown): value is Timings => {
