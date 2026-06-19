@@ -62,3 +62,31 @@ export function getCommentsForDisplay(
     .slice()
     .sort((a, b) => b.score - a.score);
 }
+
+function normalizeText(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function markCopypasta(nodes: readonly CommentNode[]): CommentNode[] {
+  const authorsByText = new Map<string, Set<string>>();
+  for (const n of nodes) {
+    const key = normalizeText(n.text);
+    if (key === "") continue;
+    (authorsByText.get(key) ?? authorsByText.set(key, new Set()).get(key)!).add(n.author.id);
+  }
+  const copypastaKeys = new Set(
+    [...authorsByText.entries()]
+      .filter(([, authors]) => authors.size >= C.COPYPASTA_MIN_AUTHORS)
+      .map(([key]) => key),
+  );
+  return nodes.map(n => {
+    if (!copypastaKeys.has(normalizeText(n.text)) || n.reasons.includes("copypasta")) {
+      return { ...n };
+    }
+    return {
+      ...n,
+      score: Math.min(100, n.score + C.COMMENT_W_COPYPASTA),
+      reasons: [...n.reasons, "copypasta"],
+    };
+  });
+}

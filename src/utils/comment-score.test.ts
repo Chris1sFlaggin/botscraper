@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreCommentText, combineCommentScore, getCommentsForDisplay } from "./comment-score";
+import { scoreCommentText, combineCommentScore, getCommentsForDisplay, markCopypasta } from "./comment-score";
 import { CommentNode } from "../model/comment";
 import { UserNode } from "../model/user";
 
@@ -56,5 +56,34 @@ describe("getCommentsForDisplay", () => {
     const out = getCommentsForDisplay(all, wl, "");
     expect(out.map(c => c.id)).toEqual(["2", "1"]);
     expect(getCommentsForDisplay(all, new Set(), "bbb").map(c => c.id)).toEqual(["2"]);
+  });
+});
+
+describe("markCopypasta", () => {
+  it("flags identical text from >=3 distinct authors, leaves others", () => {
+    const dup = (id: string, aid: string) => ({
+      id, mediaId: "m", mediaCode: "C", text: "Check my page!!!", createdAt: 0,
+      likeCount: 0,
+      author: { id: aid, username: "u" + aid, full_name: "", profile_pic_url: "x",
+        is_private: false, is_verified: false, followed_by_viewer: false,
+        follows_viewer: true, requested_by_viewer: false },
+      score: 0, reasons: [] as string[],
+    });
+    const unique = { ...dup("9", "9"), text: "unique nice shot" };
+    const out = markCopypasta([dup("1", "a"), dup("2", "b"), dup("3", "c"), unique]);
+    expect(out.filter(c => c.reasons.includes("copypasta")).length).toBe(3);
+    expect(out.find(c => c.id === "9")!.reasons).not.toContain("copypasta");
+    expect(out.find(c => c.id === "1")!.score).toBe(25);
+  });
+  it("does not flag the same author posting twice", () => {
+    const same = (id: string) => ({
+      id, mediaId: "m", mediaCode: "C", text: "spammy", createdAt: 0, likeCount: 0,
+      author: { id: "SAME", username: "u", full_name: "", profile_pic_url: "x",
+        is_private: false, is_verified: false, followed_by_viewer: false,
+        follows_viewer: true, requested_by_viewer: false },
+      score: 0, reasons: [] as string[],
+    });
+    const out = markCopypasta([same("1"), same("2"), same("3")]);
+    expect(out.some(c => c.reasons.includes("copypasta"))).toBe(false);
   });
 });
