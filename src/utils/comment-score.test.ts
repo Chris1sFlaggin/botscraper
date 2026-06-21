@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { scoreCommentText, combineCommentScore, getCommentsForDisplay, markCopypasta, scoreComment, refoldWithAuthorScore } from "./comment-score";
 import { CommentNode } from "../model/comment";
 import { UserNode } from "../model/user";
+import { COMMENT_ACTION_THRESHOLD } from "../constants/constants";
 
 const author = (id: string, username: string): UserNode => ({
   id, username, full_name: "", profile_pic_url: "https://scontent/x.jpg",
@@ -114,5 +115,39 @@ describe("refoldWithAuthorScore", () => {
   });
   it("folds author score under the 30 cap", () => {
     expect(refoldWithAuthorScore(mkComment({ text: "http://spam.ru link" }), 80).score).toBe(55);
+  });
+});
+
+// Precision-first: an emoji reaction ("❤️", "🔥") posted by many real fans is normal,
+// NOT bot copypasta. A private real-person handle with a birth-year suffix that drops a
+// "❤️" must never auto-select for deletion.
+const realFan = (id: string, text: string): CommentNode => ({
+  id, mediaId: "m", mediaCode: "C", text, createdAt: 0, likeCount: 0,
+  author: {
+    id, username: "monia_1977", full_name: "Monia",
+    profile_pic_url: "https://scontent/real.jpg",
+    is_private: true, is_verified: false, followed_by_viewer: false,
+    follows_viewer: true, requested_by_viewer: false,
+  },
+  score: 0, reasons: [],
+});
+
+describe("precision: emoji reactions are not copypasta", () => {
+  it("does not mark emoji-only reactions as copypasta even from many authors", () => {
+    const hearts = ["a", "b", "c", "d"].map(a => realFan(a, "❤️"));
+    const out = markCopypasta(hearts);
+    expect(out.some(c => c.reasons.includes("copypasta"))).toBe(false);
+  });
+
+  it("keeps a real fan's emoji reaction below the delete threshold", () => {
+    const hearts = ["a", "b", "c"].map(a => scoreComment(realFan(a, "❤️"), "owner"));
+    const scored = markCopypasta(hearts);
+    expect(scored[0].score).toBeLessThan(COMMENT_ACTION_THRESHOLD);
+  });
+
+  it("still flags real-word copypasta from >=3 authors", () => {
+    const spam = ["a", "b", "c"].map(a => scoreComment(realFan(a, "check my page!!!"), "owner"));
+    const scored = markCopypasta(spam);
+    expect(scored.every(c => c.reasons.includes("copypasta"))).toBe(true);
   });
 });

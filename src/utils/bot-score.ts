@@ -9,7 +9,15 @@ export function digitRatio(s: string): number {
 }
 
 export function hasTrailingDigits(s: string): boolean {
-  return /\d{4,}$/.test(s);
+  const m = s.match(/(\d+)$/);
+  if (m === null || m[1].length < 4) return false;
+  // A 4-digit birth-year suffix (19xx/20xx) is a real-person handle pattern (e.g. "monia_1977"),
+  // not a bot digit block. Longer runs or non-year 4-digit blocks stay flagged.
+  if (m[1].length === 4) {
+    const year = Number(m[1]);
+    if (year >= 1900 && year <= 2099) return false;
+  }
+  return true;
 }
 
 export function vowelRatio(s: string): number {

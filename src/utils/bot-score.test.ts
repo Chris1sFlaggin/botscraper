@@ -16,6 +16,14 @@ describe("heuristics", () => {
   it("digitRatio low for words", () => expect(digitRatio("realperson")).toBeLessThan(0.3));
   it("trailing digit block", () => expect(hasTrailingDigits("john4821")).toBe(true));
   it("no trailing block for short suffix", () => expect(hasTrailingDigits("john8")).toBe(false));
+  it("birth-year suffix is not a trailing digit block", () => {
+    expect(hasTrailingDigits("monia_1977")).toBe(false);
+    expect(hasTrailingDigits("giulia2001")).toBe(false);
+  });
+  it("non-year 4-digit block still flagged", () => {
+    expect(hasTrailingDigits("user3500")).toBe(true);
+    expect(hasTrailingDigits("user82910472")).toBe(true);
+  });
   it("gibberish detection", () => expect(isGibberish("xkcdfghj")).toBe(true));
   it("real word not gibberish", () => expect(isGibberish("giulia")).toBe(false));
   it("spam keywords", () => expect(hasSpam("FREE FOLLOWERS link in bio")).toBe(true));

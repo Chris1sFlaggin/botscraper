@@ -13,6 +13,11 @@ const MENTION_RE = /@\w+/g;
 // Strip non-word chars to see if any real text remains. \W already covers emoji,
 // symbols and punctuation; \s is redundant inside \W but kept for legibility.
 const NON_TEXT_RE = /[\W\s]/g;
+// A comment carries real words only if it has at least one letter. Emoji/symbol/number-only
+// reactions ("❤️", "🔥🔥", "👏") are not "pasted messages" and must not count as copypasta.
+// ASCII-letter check (no \p{L}/u): the build targets ES5, and this matches the codebase's
+// existing \W-based emoji-only detection.
+const HAS_LETTER_RE = /[a-z]/i;
 
 export function scoreCommentText(text: string): CommentScore {
   const reasons: string[] = [];
@@ -73,7 +78,7 @@ export function markCopypasta(nodes: readonly CommentNode[]): CommentNode[] {
   const authorsByText = new Map<string, Set<string>>();
   for (const n of nodes) {
     const key = normalizeText(n.text);
-    if (key === "") continue;
+    if (key === "" || !HAS_LETTER_RE.test(key)) continue;
     (authorsByText.get(key) ?? authorsByText.set(key, new Set()).get(key)!).add(n.author.id);
   }
   const copypastaKeys = new Set(
