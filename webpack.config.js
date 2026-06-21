@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-    entry: { dist: './src/main.tsx', comments: './src/main-comments.tsx' },
+    entry: { dist: './src/main.tsx', comments: './src/main-comments.tsx', monitor: './src/main-monitor.tsx' },
     module: {
         rules: [
             {
