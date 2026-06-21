@@ -89,3 +89,15 @@ export const COMMENT_GENERIC_PHRASES = ["nice", "cool", "wow", "first", "follow 
 export const DEFAULT_SCAN_POST_CAP = 20;
 export const SCAN_LONG_PAUSE_EVERY_POSTS = 10;
 export const SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES = 20;
+
+// --- MONITOR / AUDIT (lead discovery + client monitoring) ---
+export const LEAD_FOLLOWER_SAMPLE = 300;
+export const LEAD_POSTS_SCAN = 5;
+export const CLIENT_FOLLOWER_SAMPLE = 800;
+export const CLIENT_POSTS_SCAN = 12;
+export const BOT_SAMPLE_THRESHOLD = TIER2_CANDIDATE_THRESHOLD; // 25 — a sampled follower is "suspect"
+export const LEAD_HOT = 50;
+export const LEAD_WARM = 25;
+export const MONITOR_HARVEST_CAP = 400;
+export const MONITOR_DEFAULT_CLIENTS = ["cheflarue_07"];
+export const MONITOR_PAUSE_EVERY = 20; // pages between long anti-rate-limit pauses
