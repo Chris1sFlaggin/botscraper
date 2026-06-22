@@ -101,3 +101,22 @@ export const LEAD_WARM = 25;
 export const MONITOR_HARVEST_CAP = 400;
 export const MONITOR_DEFAULT_CLIENTS = ["cheflarue_07"];
 export const MONITOR_PAUSE_EVERY = 20; // pages between long anti-rate-limit pauses
+
+// --- HEALTH REPORT ---
+export const SAMPLE_OFFENDER_CAP = 15;   // max example bots / spam comments kept per snapshot
+export const SPAM_TEXT_MAX = 140;        // truncate example comment text
+
+// Risk-flag thresholds
+export const RISK_BOT_RED = 25;          // botPct >= -> red
+export const RISK_BOT_YELLOW = 10;
+export const RISK_BOT_GREEN = 5;
+export const RISK_SPAM_RED = 10;         // spamCount >= -> red
+export const RISK_SPAM_YELLOW = 3;
+export const PRIVATE_SUSPECT_REASON = "private + suspect"; // exact scoreTier1 reason string
+export const PRIVATE_SUSPECT_FLAG_RATIO = 0.30;
+
+// Health grade bands (on healthScore = 100 - leadScore)
+export const GRADE_A = 85;
+export const GRADE_B = 70;
+export const GRADE_C = 55;
+export const GRADE_D = 35;

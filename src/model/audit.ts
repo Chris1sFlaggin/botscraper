@@ -1,6 +1,9 @@
 export type LeadClass = "hot" | "warm" | "cold";
 export type AuditStatus = "ok" | "private" | "partial";
 
+export interface ReasonExample { username: string; score: number; reasons: string[]; }
+export interface SpamExample { username: string; text: string; score: number; reasons: string[]; }
+
 export interface AuditSnapshot {
   username: string;
   id: string;
@@ -14,6 +17,10 @@ export interface AuditSnapshot {
   commentsScanned: number;
   spamCount: number;
   spamPct: number;
+  botReasons?: { [reason: string]: number };
+  spamReasons?: { [reason: string]: number };
+  sampleBots?: ReasonExample[];
+  sampleSpam?: SpamExample[];
 }
 
 export interface SnapshotDelta {
