@@ -74,3 +74,17 @@ export function tallyReasons(items: ReadonlyArray<{ reasons: string[] }>): { [r:
   }
   return out;
 }
+
+export function healthScoreOf(s: AuditSnapshot): number {
+  return 100 - leadScore(s);
+}
+
+export interface HealthGrade { grade: "A" | "B" | "C" | "D" | "F"; verdict: string; }
+
+export function healthGrade(score: number): HealthGrade {
+  if (score >= C.GRADE_A) return { grade: "A", verdict: "Sano" };
+  if (score >= C.GRADE_B) return { grade: "B", verdict: "Buono" };
+  if (score >= C.GRADE_C) return { grade: "C", verdict: "Attenzione" };
+  if (score >= C.GRADE_D) return { grade: "D", verdict: "A rischio" };
+  return { grade: "F", verdict: "Critico" };
+}

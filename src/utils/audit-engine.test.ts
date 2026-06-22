@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   botPct, leadScore, classifyLead, pitchLine, diffSnapshots,
   dedupeCandidates, rankLeads, emptySnapshot, tallyReasons,
+  healthScoreOf, healthGrade,
 } from "./audit-engine";
 import { AuditSnapshot } from "../model/audit";
 
@@ -87,5 +88,22 @@ describe("tallyReasons", () => {
   });
   it("empty for no items", () => {
     expect(tallyReasons([])).toEqual({});
+  });
+});
+
+describe("healthScoreOf + healthGrade", () => {
+  it("health is 100 minus the problem score", () => {
+    expect(healthScoreOf(snap({ botPct: 9, spamPct: 0 }))).toBe(95);  // leadScore 5
+    expect(healthScoreOf(snap({ botPct: 40, spamPct: 0.5 }))).toBe(56); // leadScore 44
+  });
+  it("grades by band boundaries", () => {
+    expect(healthGrade(95).grade).toBe("A");
+    expect(healthGrade(85).grade).toBe("A");
+    expect(healthGrade(84).grade).toBe("B");
+    expect(healthGrade(70).grade).toBe("B");
+    expect(healthGrade(55).grade).toBe("C");
+    expect(healthGrade(35).grade).toBe("D");
+    expect(healthGrade(34).grade).toBe("F");
+    expect(healthGrade(95).verdict).toBe("Sano");
   });
 });
