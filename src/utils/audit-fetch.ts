@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AuditSnapshot } from "../model/audit";
+import { AuditSnapshot, ReasonExample } from "../model/audit";
 import { CommentNode } from "../model/comment";
-import { emptySnapshot, botPct, dedupeCandidates } from "./audit-engine";
+import { emptySnapshot, botPct, dedupeCandidates, tallyReasons, botExamplesFrom, spamExamplesFrom } from "./audit-engine";
 import {
   resolveTarget, followersUrlGenerator, mapApiUserToNode, userMediaUrlGenerator,
   mediaCommentsUrlGenerator, mapApiCommentToNode, IG_HEADERS, sleep,
@@ -23,21 +23,23 @@ export async function auditAccount(username: string, opts: AuditOpts): Promise<A
   const snap = emptySnapshot(target.username, target.id, scannedAt, "ok", target.followerCount);
 
   // 1) follower sample -> bot%
-  const scores: number[] = [];
+  const sampled: ReasonExample[] = [];
   let maxId: string | undefined;
   let pages = 0;
-  while (scores.length < opts.followerSample) {
+  while (sampled.length < opts.followerSample) {
     let json: any;
     try { json = await fetch(followersUrlGenerator(target.id, maxId), IG_HEADERS).then(r => r.json()); }
     catch (e) { console.error(e); snap.status = "partial"; break; }
     const users = json.users ?? [];
     if (users.length === 0) {
-      if (scores.length === 0 && target.isPrivate) snap.status = "private";
+      if (sampled.length === 0 && target.isPrivate) snap.status = "private";
       break;
     }
     for (const u of users) {
-      scores.push(scoreTier1(mapApiUserToNode(u), false).score);
-      if (scores.length >= opts.followerSample) break;
+      const node = mapApiUserToNode(u);
+      const r = scoreTier1(node, false);
+      sampled.push({ username: node.username, score: r.score, reasons: r.reasons });
+      if (sampled.length >= opts.followerSample) break;
     }
     maxId = json.next_max_id;
     if (!maxId) break;
@@ -45,9 +47,12 @@ export async function auditAccount(username: string, opts: AuditOpts): Promise<A
     await sleep(1500);
     if (pages % C.MONITOR_PAUSE_EVERY === 0) await sleep(C.TIME_AFTER_TWENTY_ENRICH);
   }
-  snap.followersSampled = scores.length;
-  snap.botCount = scores.filter(s => s >= C.BOT_SAMPLE_THRESHOLD).length;
-  snap.botPct = botPct(scores, C.BOT_SAMPLE_THRESHOLD);
+  const bots = sampled.filter(u => u.score >= C.BOT_SAMPLE_THRESHOLD);
+  snap.followersSampled = sampled.length;
+  snap.botCount = bots.length;
+  snap.botPct = botPct(sampled.map(u => u.score), C.BOT_SAMPLE_THRESHOLD);
+  snap.botReasons = tallyReasons(bots);
+  snap.sampleBots = botExamplesFrom(sampled, C.BOT_SAMPLE_THRESHOLD, C.SAMPLE_OFFENDER_CAP);
 
   // 2) recent posts -> spam comments
   const media: { id: string; code: string }[] = [];
@@ -77,9 +82,12 @@ export async function auditAccount(username: string, opts: AuditOpts): Promise<A
     await sleep(1500);
   }
   comments = markCopypasta(comments);
+  const flagged = comments.filter(c => c.score >= C.COMMENT_ACTION_THRESHOLD);
   snap.commentsScanned = comments.length;
-  snap.spamCount = comments.filter(c => c.score >= C.COMMENT_ACTION_THRESHOLD).length;
+  snap.spamCount = flagged.length;
   snap.spamPct = comments.length ? snap.spamCount / comments.length : 0;
+  snap.spamReasons = tallyReasons(flagged);
+  snap.sampleSpam = spamExamplesFrom(comments, C.COMMENT_ACTION_THRESHOLD, C.SAMPLE_OFFENDER_CAP, C.SPAM_TEXT_MAX);
   return snap;
 }
 

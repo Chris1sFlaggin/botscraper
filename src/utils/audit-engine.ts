@@ -68,7 +68,7 @@ export function rankLeads(snapshots: readonly AuditSnapshot[]): LeadRank[] {
   return ranks;
 }
 
-export function tallyReasons(items: ReadonlyArray<{ reasons: string[] }>): { [r: string]: number } {
+export function tallyReasons(items: ReadonlyArray<{ reasons: readonly string[] }>): { [r: string]: number } {
   const out: { [r: string]: number } = {};
   for (const it of items) {
     for (const r of it.reasons) out[r] = (out[r] ?? 0) + 1;
@@ -130,7 +130,7 @@ export function botExamplesFrom(
 }
 
 export function spamExamplesFrom(
-  comments: ReadonlyArray<{ author: { username: string }; text: string; score: number; reasons: string[] }>,
+  comments: ReadonlyArray<{ author: { username: string }; text: string; score: number; reasons: readonly string[] }>,
   threshold: number, cap: number, textMax: number,
 ): SpamExample[] {
   return comments
@@ -141,7 +141,7 @@ export function spamExamplesFrom(
     .map(c => ({
       username: c.author.username,
       score: c.score,
-      reasons: c.reasons,
+      reasons: c.reasons.slice(),
       text: c.text.length > textMax ? c.text.slice(0, textMax) + "…" : c.text,
     }));
 }
