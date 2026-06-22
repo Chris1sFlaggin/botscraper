@@ -18,6 +18,7 @@ import {
   TIME_BETWEEN_ENRICH,
   TIME_AFTER_TWENTY_ENRICH,
   IG_APP_ID,
+  MAX_REMOVALS_PER_RUN,
 } from "./constants/constants";
 import {
   assertUnreachable,
@@ -672,6 +673,12 @@ function App() {
       let counter = 0;
       for (const user of state.selectedResults) {
         counter += 1;
+        // Per-run cap: never mass-remove on the account in one session — mass actions
+        // are the classic action-block/ban trigger. Resume the rest another day.
+        if (counter > MAX_REMOVALS_PER_RUN) {
+          setToast({ show: true, text: `Cap di sicurezza: ${MAX_REMOVALS_PER_RUN} rimozioni per volta. Riprendi domani con i restanti.` });
+          break;
+        }
         const percentage = Math.round((counter / state.selectedResults.length) * 100);
         try {
           const res = await fetch(removeFollowerUrlGenerator(user.id), {

@@ -4,9 +4,10 @@ import "./styles.scss";
 
 import { INSTAGRAM_HOSTNAME, IG_APP_ID, COMMENT_ACTION_THRESHOLD,
   COMMENT_CANDIDATE_THRESHOLD, DEEP_SCAN_CAP, TIME_BETWEEN_ENRICH, TIME_AFTER_TWENTY_ENRICH,
-  DEFAULT_SCAN_POST_CAP, SCAN_LONG_PAUSE_EVERY_POSTS, SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES } from "./constants/constants";
+  DEFAULT_SCAN_POST_CAP, SCAN_LONG_PAUSE_EVERY_POSTS, SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES,
+  AUDIT_PAGE_DELAY, AUDIT_MEDIA_DELAY, COMMENT_WRITE_DELAY, MAX_AUTHOR_ACTIONS_PER_RUN } from "./constants/constants";
 import {
-  getCookie, sleep, IG_HEADERS, resolveTarget, ownerMatches,
+  getCookie, sleep, humanSleep, IG_HEADERS, resolveTarget, ownerMatches,
   userMediaUrlGenerator, mediaCommentsUrlGenerator, mapApiCommentToNode,
   bulkDeleteCommentsUrlGenerator, restrictUrlGenerator, blockUrlGenerator,
   removeFollowerUrlGenerator, profileInfoUrlGenerator, parseEnrichment,
@@ -72,7 +73,7 @@ function App() {
         }
         mediaMaxId = json.next_max_id;
         moreMedia = !!mediaMaxId && (cap === 0 || media.length < cap);
-        await sleep(1200);
+        await humanSleep(AUDIT_MEDIA_DELAY);
       }
 
       // 2) page comments per media, score as we go.
@@ -102,7 +103,7 @@ function App() {
           }
           minId = json.next_min_id ?? json.next_max_id;
           more = !!minId && (perPost === 0 || count < perPost);
-          await sleep(1500);
+          await humanSleep(AUDIT_PAGE_DELAY);
           commentPages++;
           if (commentPages % SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES === 0) {
             setToast({ show: true, text: "Pausa anti rate-limit..." });
@@ -193,9 +194,16 @@ function App() {
       const byMedia = new Map<string, CommentNode[]>();
       for (const c of state.selectedResults) (byMedia.get(c.mediaId) ?? byMedia.set(c.mediaId, []).get(c.mediaId)!).push(c);
       const deleteGroups = Array.from(byMedia);
-      const authorIds = state.authorAction !== "none"
+      const allAuthorIds = state.authorAction !== "none"
         ? Array.from(new Set(state.selectedResults.map(c => c.author.id)))
         : [];
+      // Cap per-author actions (block/restrict/remove) per run: mass actions on the
+      // account are the classic action-block/ban trigger. The rest is resumed later.
+      const authorIds = allAuthorIds.slice(0, MAX_AUTHOR_ACTIONS_PER_RUN);
+      const authorsDeferred = allAuthorIds.length - authorIds.length;
+      if (authorsDeferred > 0) {
+        alert(`Per sicurezza max ${MAX_AUTHOR_ACTIONS_PER_RUN} azioni autore per volta. ${authorsDeferred} rimandati: rifai l'azione domani sui restanti.`);
+      }
       const totalUnits = deleteGroups.length + authorIds.length;
       let unit = 0;
       const bumpProgress = () => {
@@ -217,7 +225,7 @@ function App() {
         } catch (e) { console.error(e); }
         bumpProgress();
         if (unit % 10 === 0) { setToast({ show: true, text: "Pausa anti rate-limit..." }); await sleep(TIME_AFTER_TWENTY_ENRICH); }
-        await sleep(4000);
+        await humanSleep(COMMENT_WRITE_DELAY);
       }
 
       // author action on unique authors
@@ -235,7 +243,7 @@ function App() {
         } catch (e) { console.error(e); }
         bumpProgress();
         if (unit % 10 === 0) { setToast({ show: true, text: "Pausa anti rate-limit..." }); await sleep(TIME_AFTER_TWENTY_ENRICH); }
-        await sleep(4000);
+        await humanSleep(COMMENT_WRITE_DELAY);
       }
 
       setState(prev => prev.status === "acting" ? {

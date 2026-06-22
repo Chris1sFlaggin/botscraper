@@ -6,7 +6,7 @@ export const TIMINGS_STORAGE_KEY = "iu_timings";
 //TIMINGS CONSTANTS
 export const DEFAULT_TIME_BETWEEN_SEARCH_CYCLES = 1000;
 export const DEFAULT_TIME_TO_WAIT_AFTER_FIVE_SEARCH_CYCLES = 10000;
-export const DEFAULT_TIME_BETWEEN_UNFOLLOWS = 4000;
+export const DEFAULT_TIME_BETWEEN_UNFOLLOWS = 6000;
 export const DEFAULT_TIME_TO_WAIT_AFTER_FIVE_UNFOLLOWS = 300000;
 
 // FILTER CONSTANTS
@@ -40,8 +40,8 @@ export const W_EMPTY_BIO = 5;
 export const TIER2_CANDIDATE_THRESHOLD = 25;
 export const DEFAULT_REMOVAL_THRESHOLD = 60;
 export const DEEP_SCAN_CAP = 200;
-export const TIME_BETWEEN_ENRICH = 1500;
-export const TIME_AFTER_TWENTY_ENRICH = 30000;
+export const TIME_BETWEEN_ENRICH = 2500;
+export const TIME_AFTER_TWENTY_ENRICH = 45000;
 
 // Heuristic params
 export const DIGIT_RATIO_THRESHOLD = 0.30;
@@ -91,16 +91,16 @@ export const SCAN_LONG_PAUSE_EVERY_POSTS = 10;
 export const SCAN_LONG_PAUSE_EVERY_COMMENT_PAGES = 20;
 
 // --- MONITOR / AUDIT (lead discovery + client monitoring) ---
-export const LEAD_FOLLOWER_SAMPLE = 300;
+export const LEAD_FOLLOWER_SAMPLE = 200;
 export const LEAD_POSTS_SCAN = 5;
-export const CLIENT_FOLLOWER_SAMPLE = 800;
+export const CLIENT_FOLLOWER_SAMPLE = 400;
 export const CLIENT_POSTS_SCAN = 12;
 export const BOT_SAMPLE_THRESHOLD = TIER2_CANDIDATE_THRESHOLD; // 25 — a sampled follower is "suspect"
 export const LEAD_HOT = 50;
 export const LEAD_WARM = 25;
 export const MONITOR_HARVEST_CAP = 400;
 export const MONITOR_DEFAULT_CLIENTS = ["cheflarue_07"];
-export const MONITOR_PAUSE_EVERY = 20; // pages between long anti-rate-limit pauses
+export const MONITOR_PAUSE_EVERY = 10; // pages between long anti-rate-limit pauses
 
 // --- HEALTH REPORT ---
 export const SAMPLE_OFFENDER_CAP = 15;   // max example bots / spam comments kept per snapshot
@@ -120,3 +120,14 @@ export const GRADE_A = 85;
 export const GRADE_B = 70;
 export const GRADE_C = 55;
 export const GRADE_D = 35;
+
+// --- SAFE PACING (anti rate-limit / anti action-block) ---
+// Read pacing for the audit/monitor; jittered at the call site via humanSleep.
+export const AUDIT_PAGE_DELAY = 2500;   // between follower / comment pages
+export const AUDIT_MEDIA_DELAY = 2000;  // between media (post) pages
+
+// Write caps — never mass-act on a client account in one run. Forces small,
+// spread-out batches; the rest is resumed another day (much lower ban risk).
+export const MAX_REMOVALS_PER_RUN = 50;       // bulk remove_follower (bot followers)
+export const MAX_AUTHOR_ACTIONS_PER_RUN = 50; // block / restrict / remove comment authors
+export const COMMENT_WRITE_DELAY = 6000;      // between comment deletes / author actions

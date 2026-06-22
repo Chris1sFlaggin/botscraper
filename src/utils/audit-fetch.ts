@@ -4,7 +4,7 @@ import { CommentNode } from "../model/comment";
 import { emptySnapshot, botPct, dedupeCandidates, tallyReasons, botExamplesFrom, spamExamplesFrom } from "./audit-engine";
 import {
   resolveTarget, followersUrlGenerator, mapApiUserToNode, userMediaUrlGenerator,
-  mediaCommentsUrlGenerator, mapApiCommentToNode, IG_HEADERS, sleep,
+  mediaCommentsUrlGenerator, mapApiCommentToNode, IG_HEADERS, sleep, humanSleep,
 } from "./utils";
 import { scoreTier1 } from "./bot-score";
 import { scoreComment, markCopypasta } from "./comment-score";
@@ -44,7 +44,7 @@ export async function auditAccount(username: string, opts: AuditOpts): Promise<A
     maxId = json.next_max_id;
     if (!maxId) break;
     pages++;
-    await sleep(1500);
+    await humanSleep(C.AUDIT_PAGE_DELAY);
     if (pages % C.MONITOR_PAUSE_EVERY === 0) await sleep(C.TIME_AFTER_TWENTY_ENRICH);
   }
   const bots = sampled.filter(u => u.score >= C.BOT_SAMPLE_THRESHOLD);
@@ -70,7 +70,7 @@ export async function auditAccount(username: string, opts: AuditOpts): Promise<A
     }
     mediaMaxId = json.next_max_id;
     if (!mediaMaxId) break;
-    await sleep(1200);
+    await humanSleep(C.AUDIT_MEDIA_DELAY);
   }
   snap.postsScanned = media.length;
 
@@ -82,7 +82,7 @@ export async function auditAccount(username: string, opts: AuditOpts): Promise<A
     for (const raw of (json.comments ?? [])) {
       comments.push(scoreComment(mapApiCommentToNode(raw, m.id, m.code), target.id));
     }
-    await sleep(1500);
+    await humanSleep(C.AUDIT_PAGE_DELAY);
   }
   comments = markCopypasta(comments);
   const flagged = comments.filter(c => c.score >= C.COMMENT_ACTION_THRESHOLD);
@@ -115,7 +115,7 @@ export async function harvestCandidates(
       maxId = json.next_max_id;
       if (!maxId) break;
       pages++;
-      await sleep(1500);
+      await humanSleep(C.AUDIT_PAGE_DELAY);
       if (pages % C.MONITOR_PAUSE_EVERY === 0) await sleep(C.TIME_AFTER_TWENTY_ENRICH);
     }
   } else {
@@ -131,7 +131,7 @@ export async function harvestCandidates(
       }
       mediaMaxId = json.next_max_id;
       if (!mediaMaxId) break;
-      await sleep(1200);
+      await humanSleep(C.AUDIT_MEDIA_DELAY);
     }
     for (const mid of media) {
       let json: any;
@@ -141,7 +141,7 @@ export async function harvestCandidates(
         if (raw.user && raw.user.username) handles.push(raw.user.username);
         if (handles.length >= cap) break;
       }
-      await sleep(1500);
+      await humanSleep(C.AUDIT_PAGE_DELAY);
     }
   }
   return dedupeCandidates(handles);

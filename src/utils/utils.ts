@@ -152,6 +152,13 @@ export function sleep(ms: number): Promise<any> {
   });
 }
 
+// Human-like delay: the base wait plus up to +60% random jitter. Fixed intervals
+// are an automation fingerprint; randomizing the gaps looks organic and lowers
+// rate-limit / action-block risk. Never waits less than the base.
+export function humanSleep(baseMs: number): Promise<any> {
+  return sleep(baseMs + Math.floor(Math.random() * baseMs * 0.6));
+}
+
 export function getCookie(name: string): string | null {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
