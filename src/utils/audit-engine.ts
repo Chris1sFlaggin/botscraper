@@ -88,3 +88,32 @@ export function healthGrade(score: number): HealthGrade {
   if (score >= C.GRADE_D) return { grade: "D", verdict: "A rischio" };
   return { grade: "F", verdict: "Critico" };
 }
+
+export function estBotFollowers(s: AuditSnapshot): number {
+  return Math.round((s.botPct / 100) * s.followerCount);
+}
+
+export type Severity = "green" | "yellow" | "red";
+export interface RiskFlag { severity: Severity; text: string; }
+
+export function riskFlags(s: AuditSnapshot): RiskFlag[] {
+  const flags: RiskFlag[] = [];
+
+  if (s.botPct >= C.RISK_BOT_RED) flags.push({ severity: "red", text: "Audience molto gonfiata — rischio reach ridotta / shadowban" });
+  else if (s.botPct >= C.RISK_BOT_YELLOW) flags.push({ severity: "yellow", text: "Quota bot sopra la norma — pulizia consigliata" });
+  else if (s.botPct >= C.RISK_BOT_GREEN) flags.push({ severity: "green", text: "Bot fisiologici — sotto controllo" });
+  else flags.push({ severity: "green", text: "Audience pulita" });
+
+  if (s.spamCount >= C.RISK_SPAM_RED) flags.push({ severity: "red", text: "Molti commenti spam — profilo sembra non moderato" });
+  else if (s.spamCount >= C.RISK_SPAM_YELLOW) flags.push({ severity: "yellow", text: "Commenti spam presenti" });
+  else if (s.spamCount >= 1) flags.push({ severity: "yellow", text: "Pochi commenti spam" });
+  else flags.push({ severity: "green", text: "Nessun commento spam sui post recenti" });
+
+  if ((s.spamReasons?.["copypasta"] ?? 0) > 0) {
+    flags.push({ severity: "yellow", text: "Rete di commenti copia-incolla rilevata" });
+  }
+  if (s.botCount > 0 && (s.botReasons?.[C.PRIVATE_SUSPECT_REASON] ?? 0) >= C.PRIVATE_SUSPECT_FLAG_RATIO * s.botCount) {
+    flags.push({ severity: "yellow", text: "Molti follower privati sospetti" });
+  }
+  return flags;
+}

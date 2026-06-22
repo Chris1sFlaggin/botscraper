@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   botPct, leadScore, classifyLead, pitchLine, diffSnapshots,
   dedupeCandidates, rankLeads, emptySnapshot, tallyReasons,
-  healthScoreOf, healthGrade,
+  healthScoreOf, healthGrade, estBotFollowers, riskFlags,
 } from "./audit-engine";
 import { AuditSnapshot } from "../model/audit";
 
@@ -105,5 +105,33 @@ describe("healthScoreOf + healthGrade", () => {
     expect(healthGrade(35).grade).toBe("D");
     expect(healthGrade(34).grade).toBe("F");
     expect(healthGrade(95).verdict).toBe("Sano");
+  });
+});
+
+describe("estBotFollowers", () => {
+  it("rounds botPct% of followerCount", () => {
+    expect(estBotFollowers(snap({ followerCount: 74319, botPct: 9 }))).toBe(6689);
+    expect(estBotFollowers(snap({ followerCount: 1000, botPct: 0 }))).toBe(0);
+  });
+});
+
+describe("riskFlags", () => {
+  const sev = (s: AuditSnapshot) => riskFlags(s).map(f => `${f.severity}`);
+  it("red bot share at 25%+", () => {
+    expect(riskFlags(snap({ botPct: 30 }))[0]).toMatchObject({ severity: "red" });
+  });
+  it("green clean audience under 5%", () => {
+    expect(riskFlags(snap({ botPct: 2, spamCount: 0 }))[0]).toMatchObject({ severity: "green" });
+  });
+  it("flags copypasta ring when present in spamReasons", () => {
+    const out = riskFlags(snap({ botPct: 2, spamCount: 4, spamReasons: { copypasta: 3 } }));
+    expect(out.some(f => f.text.indexOf("copia-incolla") >= 0)).toBe(true);
+  });
+  it("flags private-suspect mass at 30%+ of botCount", () => {
+    const out = riskFlags(snap({ botPct: 12, botCount: 100, botReasons: { "private + suspect": 30 } }));
+    expect(out.some(f => f.text.indexOf("privati sospetti") >= 0)).toBe(true);
+  });
+  it("always returns a bot flag and a spam flag", () => {
+    expect(sev(snap({ botPct: 0, spamCount: 0 })).length).toBe(2);
   });
 });
