@@ -41,6 +41,7 @@ export function diffSnapshots(prev: AuditSnapshot, curr: AuditSnapshot): Snapsho
     followerCountDelta: curr.followerCount - prev.followerCount,
     botPctDelta: curr.botPct - prev.botPct,
     spamCountDelta: curr.spamCount - prev.spamCount,
+    healthScoreDelta: healthScoreOf(curr) - healthScoreOf(prev),
   };
 }
 

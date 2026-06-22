@@ -30,6 +30,7 @@ export interface SnapshotDelta {
   followerCountDelta: number;
   botPctDelta: number;
   spamCountDelta: number;
+  healthScoreDelta: number;
 }
 
 export interface LeadRank {

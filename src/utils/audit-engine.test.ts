@@ -49,6 +49,7 @@ describe("diffSnapshots", () => {
     expect(d.followerCountDelta).toBe(200);
     expect(d.botPctDelta).toBe(-21);
     expect(d.spamCountDelta).toBe(-38);
+    expect(d.healthScoreDelta).toBe(13); // health 95 (curr) - 82 (prev)
     expect(d.prevAt).toBe("2026-06-01T00:00:00.000Z");
   });
 });
