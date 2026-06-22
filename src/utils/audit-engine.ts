@@ -66,3 +66,11 @@ export function rankLeads(snapshots: readonly AuditSnapshot[]): LeadRank[] {
   ranks.sort((a, b) => b.leadScore - a.leadScore);
   return ranks;
 }
+
+export function tallyReasons(items: ReadonlyArray<{ reasons: string[] }>): { [r: string]: number } {
+  const out: { [r: string]: number } = {};
+  for (const it of items) {
+    for (const r of it.reasons) out[r] = (out[r] ?? 0) + 1;
+  }
+  return out;
+}

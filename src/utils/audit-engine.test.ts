@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   botPct, leadScore, classifyLead, pitchLine, diffSnapshots,
-  dedupeCandidates, rankLeads, emptySnapshot,
+  dedupeCandidates, rankLeads, emptySnapshot, tallyReasons,
 } from "./audit-engine";
 import { AuditSnapshot } from "../model/audit";
 
@@ -73,5 +73,19 @@ describe("emptySnapshot", () => {
   it("zero-fills metrics with the given status", () => {
     const s = emptySnapshot("u", "9", "2026-06-21T00:00:00.000Z", "private", 500);
     expect(s).toMatchObject({ username: "u", id: "9", status: "private", followerCount: 500, botPct: 0, spamCount: 0 });
+  });
+});
+
+describe("tallyReasons", () => {
+  it("counts each reason across items", () => {
+    const out = tallyReasons([
+      { reasons: ["no profile pic", "gibberish username"] },
+      { reasons: ["no profile pic"] },
+      { reasons: [] },
+    ]);
+    expect(out).toEqual({ "no profile pic": 2, "gibberish username": 1 });
+  });
+  it("empty for no items", () => {
+    expect(tallyReasons([])).toEqual({});
   });
 });
