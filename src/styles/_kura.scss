@@ -167,6 +167,7 @@ html .iu button.run-scan:hover { background: #ec5142; }
 .iu .health-report .grade-A, .iu .health-report .grade-B { color: #56d756; background: rgba(86, 215, 86, 0.12); }
 .iu .health-report .grade-C { color: #e0b020; background: rgba(224, 176, 32, 0.12); }
 .iu .health-report .grade-D, .iu .health-report .grade-F { color: #e0402f; background: rgba(224, 64, 47, 0.14); }
+.iu .health-report .hr-warn { background: rgba(224, 176, 32, 0.12); border-left: 3px solid #e0b020; color: var(--text); padding: 0.4rem 0.6rem; margin: 0.5rem 0; font-size: 0.85rem; }
 .iu .health-report .hr-headline { font-size: 1rem; color: var(--text); margin: 0.5rem 0 0.25rem; }
 .iu .health-report .hint { color: var(--muted); font-size: 0.8rem; }
 .iu .health-report .risk-list { list-style: none; padding: 0; margin: 0; }

@@ -25,11 +25,20 @@ function Bars(p: { rows: { reason: string; count: number }[] }): React.JSX.Eleme
 
 export function HealthReport(p: { snapshot: AuditSnapshot; delta: SnapshotDelta | null }): React.JSX.Element {
   const s = p.snapshot;
-  if (s.status !== "ok") {
+  const hasData = s.followersSampled > 0 || s.commentsScanned > 0;
+  if (s.status === "private") {
     return (
       <div className="health-report">
-        <div className="hr-head"><h3>@{s.username}</h3><span className="grade grade-F">{s.status}</span></div>
-        <p className="hint">Profilo non analizzabile ({s.status}). Per i privati serve seguirli con l'account loggato.</p>
+        <div className="hr-head"><h3>@{s.username}</h3><span className="grade grade-F">privato</span></div>
+        <p className="hint">Profilo privato e non seguito — non auditabile con questo account.</p>
+      </div>
+    );
+  }
+  if (!hasData) {
+    return (
+      <div className="health-report">
+        <div className="hr-head"><h3>@{s.username}</h3><span className="grade grade-F">nessun dato</span></div>
+        <p className="hint">Nessun dato raccolto: profilo irraggiungibile o rate-limit di Instagram. Aspetta 10–15 minuti, evita scansioni ravvicinate, poi riprova.</p>
       </div>
     );
   }
@@ -45,6 +54,7 @@ export function HealthReport(p: { snapshot: AuditSnapshot; delta: SnapshotDelta 
         <h3>@{s.username}</h3>
         <span className={"grade grade-" + g.grade}>{g.grade} · {g.verdict} · {score}/100</span>
       </div>
+      {s.status === "partial" && <p className="hr-warn">⚠ Dati parziali: alcune chiamate a Instagram sono fallite (probabile rate-limit). I numeri sono su un campione ridotto — riscansiona tra qualche minuto.</p>}
       <p className="hr-headline">
         {s.followerCount.toLocaleString()} follower · <strong>~{est.toLocaleString()} sospetti ({s.botPct}%)</strong> · {s.spamCount} commenti spam
       </p>

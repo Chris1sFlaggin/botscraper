@@ -53,6 +53,9 @@ export async function auditAccount(username: string, opts: AuditOpts): Promise<A
   snap.botPct = botPct(sampled.map(u => u.score), C.BOT_SAMPLE_THRESHOLD);
   snap.botReasons = tallyReasons(bots);
   snap.sampleBots = botExamplesFrom(sampled, C.BOT_SAMPLE_THRESHOLD, C.SAMPLE_OFFENDER_CAP);
+  // Empty sample on a non-private account means we were throttled/blocked, not that the
+  // audience is clean — flag it so the report shows a rate-limit warning, not a fake "Sano".
+  if (sampled.length === 0 && snap.status === "ok") snap.status = "partial";
 
   // 2) recent posts -> spam comments
   const media: { id: string; code: string }[] = [];
