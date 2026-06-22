@@ -3,6 +3,7 @@ import {
   botPct, leadScore, classifyLead, pitchLine, diffSnapshots,
   dedupeCandidates, rankLeads, emptySnapshot, tallyReasons,
   healthScoreOf, healthGrade, estBotFollowers, riskFlags,
+  botExamplesFrom, spamExamplesFrom,
 } from "./audit-engine";
 import { AuditSnapshot } from "../model/audit";
 
@@ -134,5 +135,34 @@ describe("riskFlags", () => {
   });
   it("always returns a bot flag and a spam flag", () => {
     expect(sev(snap({ botPct: 0, spamCount: 0 })).length).toBe(2);
+  });
+});
+
+describe("botExamplesFrom", () => {
+  it("keeps score>=threshold, sorts desc, caps", () => {
+    const scored = [
+      { username: "a", score: 70, reasons: ["no profile pic"] },
+      { username: "b", score: 10, reasons: [] },
+      { username: "c", score: 40, reasons: ["gibberish username"] },
+    ];
+    const out = botExamplesFrom(scored, 25, 1);
+    expect(out.map(b => b.username)).toEqual(["a"]);
+    expect(botExamplesFrom(scored, 25, 5).map(b => b.username)).toEqual(["a", "c"]);
+  });
+});
+
+describe("spamExamplesFrom", () => {
+  const c = (username: string, text: string, score: number) =>
+    ({ author: { username }, text, score, reasons: ["link in comment"] });
+  it("filters, sorts, caps, truncates text", () => {
+    const out = spamExamplesFrom([c("x", "buy followers", 80), c("y", "ok", 10)], 60, 5, 140);
+    expect(out.length).toBe(1);
+    expect(out[0]).toMatchObject({ username: "x", score: 80 });
+  });
+  it("truncates long text with ellipsis", () => {
+    const long = "a".repeat(200);
+    const out = spamExamplesFrom([c("x", long, 90)], 60, 5, 140);
+    expect(out[0].text.length).toBe(141); // 140 chars + ellipsis
+    expect(out[0].text.slice(-1)).toBe("…");
   });
 });

@@ -1,4 +1,4 @@
-import { AuditSnapshot, SnapshotDelta, LeadRank, LeadClass, AuditStatus } from "../model/audit";
+import { AuditSnapshot, SnapshotDelta, LeadRank, LeadClass, AuditStatus, ReasonExample, SpamExample } from "../model/audit";
 import * as C from "../constants/constants";
 
 export function emptySnapshot(
@@ -117,4 +117,31 @@ export function riskFlags(s: AuditSnapshot): RiskFlag[] {
     flags.push({ severity: "yellow", text: "Molti follower privati sospetti" });
   }
   return flags;
+}
+
+export function botExamplesFrom(
+  scored: ReadonlyArray<ReasonExample>, threshold: number, cap: number,
+): ReasonExample[] {
+  return scored
+    .filter(u => u.score >= threshold)
+    .slice()
+    .sort((a, b) => b.score - a.score)
+    .slice(0, cap);
+}
+
+export function spamExamplesFrom(
+  comments: ReadonlyArray<{ author: { username: string }; text: string; score: number; reasons: string[] }>,
+  threshold: number, cap: number, textMax: number,
+): SpamExample[] {
+  return comments
+    .filter(c => c.score >= threshold)
+    .slice()
+    .sort((a, b) => b.score - a.score)
+    .slice(0, cap)
+    .map(c => ({
+      username: c.author.username,
+      score: c.score,
+      reasons: c.reasons,
+      text: c.text.length > textMax ? c.text.slice(0, textMax) + "…" : c.text,
+    }));
 }
