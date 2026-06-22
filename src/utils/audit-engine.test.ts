@@ -3,7 +3,7 @@ import {
   botPct, leadScore, classifyLead, pitchLine, diffSnapshots,
   dedupeCandidates, rankLeads, emptySnapshot, tallyReasons,
   healthScoreOf, healthGrade, estBotFollowers, riskFlags,
-  botExamplesFrom, spamExamplesFrom,
+  botExamplesFrom, spamExamplesFrom, recommendedAction, reportToText,
 } from "./audit-engine";
 import { AuditSnapshot } from "../model/audit";
 
@@ -164,5 +164,31 @@ describe("spamExamplesFrom", () => {
     const out = spamExamplesFrom([c("x", long, 90)], 60, 5, 140);
     expect(out[0].text.length).toBe(141); // 140 chars + ellipsis
     expect(out[0].text.slice(-1)).toBe("…");
+  });
+});
+
+describe("recommendedAction", () => {
+  it("urges cleanup when dirty", () => {
+    expect(recommendedAction(snap({ botPct: 30, spamCount: 12 }))).toContain("Pulizia consigliata");
+  });
+  it("calls it healthy when clean", () => {
+    expect(recommendedAction(snap({ botPct: 2, spamCount: 0 }))).toContain("sana");
+  });
+});
+
+describe("reportToText", () => {
+  it("contains handle, grade, headline numbers and action", () => {
+    const s = snap({ username: "cheflarue_07", followerCount: 74319, botPct: 9, spamCount: 0 });
+    const txt = reportToText(s, null);
+    expect(txt).toContain("@cheflarue_07");
+    expect(txt).toContain("95/100");
+    expect(txt).toContain("6689");           // est bot followers
+    expect(txt).toContain("Azione:");
+  });
+  it("includes a trend line when a delta is given", () => {
+    const prev = snap({ botPct: 30 });
+    const curr = snap({ botPct: 9 });
+    const txt = reportToText(curr, diffSnapshots(prev, curr));
+    expect(txt).toContain("Trend:");
   });
 });

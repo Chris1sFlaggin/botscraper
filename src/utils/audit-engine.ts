@@ -145,3 +145,48 @@ export function spamExamplesFrom(
       text: c.text.length > textMax ? c.text.slice(0, textMax) + "…" : c.text,
     }));
 }
+
+export function recommendedAction(s: AuditSnapshot): string {
+  const est = estBotFollowers(s);
+  if (s.botPct >= C.RISK_BOT_RED || s.spamCount >= C.RISK_SPAM_RED) {
+    return `Pulizia consigliata: ~${est} bot stimati e ${s.spamCount} commenti spam. Avvia audit + rimozione.`;
+  }
+  if (s.botPct >= C.RISK_BOT_YELLOW || s.spamCount >= C.RISK_SPAM_YELLOW) {
+    return `Pulizia leggera consigliata: ~${est} follower sospetti, ${s.spamCount} commenti spam. Valuta rimozione mirata.`;
+  }
+  return "Audience sana. Monitoraggio mensile, nessuna pulizia urgente.";
+}
+
+function signed(n: number): string { return (n > 0 ? "+" : "") + n; }
+
+function topReasonLines(map: { [r: string]: number } | undefined): string[] {
+  if (!map) return [];
+  return Object.keys(map)
+    .map(k => ({ reason: k, count: map[k] }))
+    .sort((a, b) => b.count - a.count)
+    .map(e => `${e.reason} ×${e.count}`);
+}
+
+export function reportToText(s: AuditSnapshot, delta: SnapshotDelta | null): string {
+  const score = healthScoreOf(s);
+  const g = healthGrade(score);
+  const est = estBotFollowers(s);
+  const lines: string[] = [];
+  lines.push(`Report salute @${s.username}`);
+  lines.push(`Voto: ${g.grade} · ${g.verdict} · ${score}/100`);
+  lines.push(`Follower: ${s.followerCount} · ~${est} sospetti (${s.botPct}%) · ${s.spamCount} commenti spam`);
+  lines.push(`Campione: ${s.followersSampled} follower, ${s.postsScanned} post, ${s.commentsScanned} commenti`);
+  if (delta) {
+    lines.push(`Trend: salute ${signed(delta.healthScoreDelta)}, bot% ${signed(delta.botPctDelta)}, spam ${signed(delta.spamCountDelta)}`);
+  }
+  lines.push("");
+  lines.push("Rischi:");
+  for (const f of riskFlags(s)) lines.push(`- ${f.text}`);
+  const botTop = topReasonLines(s.botReasons);
+  if (botTop.length) { lines.push(""); lines.push("Perché sono bot:"); for (const l of botTop) lines.push(`- ${l}`); }
+  const spamTop = topReasonLines(s.spamReasons);
+  if (spamTop.length) { lines.push(""); lines.push("Tipi di spam:"); for (const l of spamTop) lines.push(`- ${l}`); }
+  lines.push("");
+  lines.push(`Azione: ${recommendedAction(s)}`);
+  return lines.join("\n");
+}
