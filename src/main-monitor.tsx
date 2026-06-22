@@ -6,10 +6,10 @@ import { INSTAGRAM_HOSTNAME, LEAD_FOLLOWER_SAMPLE, LEAD_POSTS_SCAN,
   CLIENT_FOLLOWER_SAMPLE, CLIENT_POSTS_SCAN, MONITOR_HARVEST_CAP,
   MONITOR_DEFAULT_CLIENTS } from "./constants/constants";
 import { auditAccount, harvestCandidates } from "./utils/audit-fetch";
-import { rankLeads, diffSnapshots, dedupeCandidates } from "./utils/audit-engine";
+import { rankLeads, diffSnapshots, dedupeCandidates, reportToText } from "./utils/audit-engine";
 import { leadsToCSV, snapshotsToJSON, parseSnapshots, downloadText } from "./utils/monitor-export";
 import { LeadTable } from "./components/LeadTable";
-import { ClientTable } from "./components/ClientTable";
+import { HealthReport } from "./components/HealthReport";
 import { Toast } from "./components/Toast";
 import { AuditSnapshot, LeadRank, MonitorRow } from "./model/audit";
 
@@ -84,6 +84,11 @@ function App() {
     catch (e) { console.error(e); note("Copia non riuscita."); }
   };
 
+  const copyReport = async (snap: AuditSnapshot, d: MonitorRow["delta"]) => {
+    try { await navigator.clipboard.writeText(reportToText(snap, d)); note("Report copiato."); }
+    catch (e) { console.error(e); note("Copia non riuscita."); }
+  };
+
   let markup: React.JSX.Element;
   if (state.status === "initial") {
     markup = (
@@ -136,7 +141,12 @@ function App() {
         <div className="toolbar-row">
           <button onClick={() => downloadText(`snapshots-${today}.json`, snapshotsToJSON(state.rows.map(r => r.curr)), "application/json")}>Esporta snapshot</button>
         </div>
-        <ClientTable rows={state.rows} />
+        {state.rows.map(r => (
+          <div className="report-block" key={r.curr.username}>
+            <HealthReport snapshot={r.curr} delta={r.delta} />
+            {r.curr.status === "ok" && <button onClick={() => copyReport(r.curr, r.delta)}>Copia report</button>}
+          </div>
+        ))}
       </section>
     );
   }
