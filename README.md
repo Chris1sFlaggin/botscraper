@@ -1,118 +1,120 @@
 # BotScraper
 
-Fork di [davidarroyo1234/InstagramUnfollowers](https://github.com/davidarroyo1234/InstagramUnfollowers)
-che estende il tool originale da "chi non ti segue indietro" a una **suite di analisi e pulizia
-follower/commenti** per account che gestisci.
+A fork of [davidarroyo1234/InstagramUnfollowers](https://github.com/davidarroyo1234/InstagramUnfollowers)
+that grows the original tool from "who doesn't follow me back" into a **follower and comment
+analysis suite** for accounts you manage.
 
-Come l'originale, gira interamente nel browser: incolli lo script nella console di
-instagram.com loggato, usa la sessione corrente e **nessun dato esce dal tuo PC**.
-Niente da installare, niente server intermedi.
+Like the original, it runs entirely in your browser: you paste the script into the console
+on a logged-in instagram.com, it uses your current session, and **no data ever leaves your
+machine**. Nothing to install, no server in the middle.
 
-> ⚠️ Da usare **solo** su account che gestisci con autorizzazione. Rimuovere follower
-> e cancellare commenti sono azioni irreversibili.
+> ⚠️ Only use this on accounts you manage **with authorization**. Removing followers and
+> deleting comments cannot be undone.
 
 ---
 
-## Cosa aggiunge rispetto a upstream
+## What it adds on top of upstream
 
-Upstream risponde a una domanda sola: chi non ti segue indietro. BotScraper aggiunge:
+Upstream answers one question: who doesn't follow you back. BotScraper adds:
 
-- **Bot-score 0–100** su ogni follower, dai dati base (username, nome, foto, privato),
-  con esclusione automatica di verificati e mutual.
-- **Deep-scan** opzionale sui soli candidati sospetti: rapporto follower/following,
-  numero di post, account recente (`is_joined_recently`), bio.
-- **Rimozione bulk** dei bot via `remove_follower`, con delay anti-block.
-- **Scraping e scoring dei commenti** su tutti i post di un account, con eliminazione
-  e azioni opzionali sull'autore (restrict/block/remove).
-- **Monitor read-only**: ricerca lead e monitoraggio clienti, con tabella HOT/WARM/COLD.
-- **Account health report**: health score, stima follower bot, risk flag e azione consigliata.
-- **Liste di rimozione** importabili/esportabili, con re-verifica live.
+- **Bot score 0–100** for every follower, derived from the basic fields that already come
+  with the list (username, full name, profile picture, private flag). Verified accounts and
+  mutuals are always excluded.
+- **Deep scan**, optional and limited to flagged candidates: follower/following ratio,
+  post count, recently created accounts (`is_joined_recently`), bio.
+- **Bulk removal** through `remove_follower`, with delays that keep you under the radar.
+- **Comment scraping and scoring** across every post of an account, with deletion and
+  optional actions on the author (restrict / block / remove).
+- **Read-only monitor**: lead discovery and client tracking, with a HOT/WARM/COLD table.
+- **Account health report**: health score, estimated bot followers, risk flags and a
+  recommended action.
+- **Removal lists** you can export and re-import, with live re-verification.
 
-## I tre tool
+## The three tools
 
-| Tool | Cosa fa | Entry point | Bundle |
+| Tool | What it does | Entry point | Bundle |
 |---|---|---|---|
-| **Bot scanner** | Analizza i follower, assegna il bot-score, rimuove in blocco | `src/main.tsx` | `dist/dist.js` |
-| **Commenti** | Punteggio bot/spam sui commenti di tutti i post, poi elimina | `src/main-comments.tsx` | `dist/comments.js` |
-| **Monitor** | Lead e monitoraggio account nel tempo — **sola lettura** | `src/main-monitor.tsx` | `dist/monitor.js` |
+| **Bot scanner** | Scores followers, deep-scans suspects, removes in bulk | `src/main.tsx` | `dist/dist.js` |
+| **Comments** | Bot/spam score on every post's comments, then delete | `src/main-comments.tsx` | `dist/comments.js` |
+| **Monitor** | Leads and account tracking over time — **read-only** | `src/main-monitor.tsx` | `dist/monitor.js` |
 
-Solo il Monitor non esegue nessuna azione su Instagram: gli altri due agiscono
-sull'account, quindi vanno usati loggati **come** il titolare.
+Only the Monitor performs no actions on Instagram. The other two act on the account, so
+they need you logged in **as** its owner.
 
-Ogni tool si apre con una schermata di avvio dove imposti i parametri della scansione.
-Quella dello scanner commenti, per esempio, chiede l'account e due limiti — quanti post
-risalire e quanti commenti leggere per post — così puoi tenere corta la scansione su
-profili con molto storico:
+Each tool opens on a start screen where you set the scan parameters. The comment scanner,
+for instance, asks for the account plus two limits — how many posts to walk back and how
+many comments to read per post — so you can keep the scan short on profiles with a long
+history:
 
-![Schermata iniziale dello scanner commenti](assets/scanner-commenti.png)
+![Comment scanner start screen](assets/scanner-commenti.png)
 
-Se l'account indicato non è quello con cui sei loggato, il tool te lo dice e chiede
-conferma prima di partire: da lì prosegue in **sola scansione ed esportazione**, con
-le azioni di cancellazione disattivate.
+If the target account isn't the one you're logged in as, the tool tells you and asks for
+confirmation before starting; from there it continues in **scan-and-export mode**, with
+every deletion action disabled.
 
-## Come si usa
+## How to use it
 
-Il codice pronto da incollare sta su **<https://chris1sflaggin.it/botscraper/>**:
-scegli il tool e premi *Copia il codice*.
+The ready-to-paste code lives at **<https://chris1sflaggin.it/botscraper/>** — pick a tool
+and hit *Copia il codice* (copy the code).
 
-![Come copiare il codice dalla pagina](assets/copia-codice.png)
+![Copying the code from the page](assets/copia-codice.png)
 
-Poi:
+Then:
 
-1. Apri **instagram.com** ed entra con l'account da analizzare.
-2. Apri la console del browser — `Ctrl + Shift + J` su Windows e Linux, `⌘ + ⌥ + I` su macOS.
-3. Incolla il codice e premi Invio. Se Chrome chiede di scrivere `allow pasting`, fallo:
-   è una sua protezione, va scritto una volta sola.
-4. Compare l'interfaccia sopra Instagram: premi **RUN** e aspetta la scansione.
+1. Open **instagram.com** and log in as the account you want to analyze.
+2. Open the browser console — `Ctrl + Shift + J` on Windows and Linux, `⌘ + ⌥ + I` on macOS.
+3. Paste the code and hit Enter. If Chrome asks you to type `allow pasting` first, do it:
+   it's a browser safeguard and you only have to type it once.
+4. The interface appears on top of Instagram: hit **RUN** and let the scan finish.
 
-In alternativa puoi compilare tu i bundle con `npm run build` e incollare il contenuto
-di `dist/`.
+Alternatively, build the bundles yourself with `npm run build` and paste the contents
+of `dist/`.
 
-### Prima di iniziare
+### Before you start
 
-Instagram cambia spesso le proprie API interne, e quando succede il tool smette di
-funzionare finché non viene aggiornato. Il controllo che ti dice subito se puoi
-procedere è nella pagina qui sopra: dura due secondi, fallo sempre.
+Instagram changes its internal APIs often, and when it does the tool stops working until
+it's updated. The check that tells you straight away whether you're good to go is on the
+page linked above — it takes two seconds, run it every time.
 
-## Come funziona il bot-score
+## How the bot score works
 
-Il punteggio è una **stima basata su segnali pubblici, non una sentenza**. La revisione
-manuale prima di rimuovere è parte del flusso, non un optional:
+The score is an **estimate built on public signals, not a verdict**. Reviewing the list
+before removing anyone is part of the flow, not an optional extra:
 
-1. **Scan** — punteggio a tutti i follower dai dati che arrivano già con la lista.
-2. **Deep-scan** — solo i candidati sopra soglia vengono approfonditi scaricandone il
-   profilo, così le richieste restano poche e il rate-limit non si arrabbia.
-3. **Revisione** — lista ordinata per punteggio, sposti la soglia, controlli e metti in
-   whitelist i falsi positivi. La whitelist persiste tra le sessioni.
-4. **Rimozione** — in blocco, con pause tra le azioni.
+1. **Scan** — score every follower from the data that already ships with the list.
+2. **Deep scan** — only candidates above the threshold get their profile fetched, which
+   keeps the request count low and the rate limiter happy.
+3. **Review** — the list is sorted by score; move the threshold, check the results, and
+   whitelist the false positives. The whitelist persists across sessions.
+4. **Removal** — in bulk, with pauses between actions.
 
-Account nuovi, senza foto o con pochi post non sono automaticamente bot: sono solo
-i segnali più comuni tra i bot.
+New accounts, accounts without a profile picture, accounts with few posts: none of these
+are bots by themselves. They're just the traits bots most often share.
 
-## Sviluppo
+## Development
 
 - Node 16.14.0 (`nvm use`)
-- `npm run build` — compila i tre bundle e aggiorna gli HTML in `public/`
+- `npm run build` — builds the three bundles and refreshes the HTML in `public/`
 - `npm test` — vitest
 
-## Sincronizzare con upstream
+## Staying in sync with upstream
 
-Il repo è agganciato all'originale, quindi gli aggiornamenti si tirano normalmente:
+The repo is wired to the original, so updates come down the usual way:
 
 ```sh
 git fetch upstream
 git merge upstream/master
 ```
 
-Il punto di stacco è il commit upstream `1b840ec` (7 giugno 2026); la parentela è stata
-stabilita con un merge una-tantum, dato che la storia locale era nata da uno snapshot
-squashato senza antenato comune.
+The fork point is upstream commit `1b840ec` (June 7, 2026). The shared ancestry was
+established with a one-off merge, because this history started life as a squashed
+snapshot with no common ancestor.
 
-## Licenza e crediti
+## License and credits
 
-Basato su [InstagramUnfollowers](https://github.com/davidarroyo1234/InstagramUnfollowers)
-di **David Arroyo**, distribuito con licenza MIT. Il copyright originale è mantenuto
-in [LICENSE](LICENSE); questo fork resta sotto la stessa licenza MIT.
+Based on [InstagramUnfollowers](https://github.com/davidarroyo1234/InstagramUnfollowers)
+by **David Arroyo**, released under the MIT License. The original copyright is preserved
+in [LICENSE](LICENSE), and this fork stays under the same MIT terms.
 
-**Disclaimer:** questo strumento non è affiliato, associato, autorizzato o approvato da
-Instagram, né ufficialmente collegato a Instagram. Usalo a tuo rischio.
+**Disclaimer:** this tool is not affiliated, associated, authorized, endorsed by, or in
+any way officially connected with Instagram. Use at your own risk.
