@@ -4,6 +4,3 @@ dist/
 .idea/
 .DS_Store
 bun.lockb
-
-# Configurazione locale dell'editor (contiene percorsi personali)
-.claude/
