@@ -63,10 +63,10 @@ export const Toolbar = ({
             }
           }}
         >
-          <span className="kura-seal">蔵</span>
-          <div className="kura-brand">
-            <span className="kura-wordmark">kura</span>
-            <span className="kura-kana">クラ · bot scanner</span>
+          <span className="brand-seal">BS</span>
+          <div className="brand-block">
+            <span className="brand-wordmark">botscraper</span>
+            <span className="brand-tagline">bot scanner</span>
           </div>
         </div>
         <div className="toolbar-actions">

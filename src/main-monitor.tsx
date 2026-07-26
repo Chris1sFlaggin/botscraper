@@ -164,7 +164,7 @@ function App() {
 if (location.hostname !== INSTAGRAM_HOSTNAME) {
   alert("Can be used only on Instagram routes");
 } else {
-  document.title = "kura — lead & client monitor";
+  document.title = "BotScraper — lead & client monitor";
   document.body.innerHTML = "";
   render(<App />, document.body);
 }

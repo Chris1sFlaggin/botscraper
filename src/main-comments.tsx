@@ -352,7 +352,7 @@ function App() {
 if (location.hostname !== INSTAGRAM_HOSTNAME) {
   alert("Can be used only on Instagram routes");
 } else {
-  document.title = "kura — comment scanner";
+  document.title = "BotScraper — comment scanner";
   document.body.innerHTML = "";
   render(<App />, document.body);
 }

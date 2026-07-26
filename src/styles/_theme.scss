@@ -1,7 +1,6 @@
 // ============================================================
-//  KURA THEME OVERRIDE  (loaded last — wins the cascade)
-//  Japanese "sumi / shu / washi" palette ported from the
-//  kura.ig landing page. Single seal-red accent, warm ink bg.
+//  THEME OVERRIDE  (loaded last — wins the cascade)
+//  Dark ink palette with a single seal-red accent.
 // ============================================================
 
 html .iu {
@@ -30,7 +29,7 @@ html .iu {
     #121110;
 }
 
-// film grain + selection — kura signatures
+// film grain + selection
 .iu::after {
   content: "";
   position: fixed;
@@ -42,9 +41,9 @@ html .iu {
 }
 .iu ::selection { background: #e0402f; color: #f2efe9; }
 
-// ---- logo: kura seal + wordmark ----
+// ---- logo: seal + wordmark ----
 .iu .app-header .logo { gap: 0.7rem; min-width: auto; }
-.iu .kura-seal {
+.iu .brand-seal {
   width: 2.6rem;
   height: 2.6rem;
   border-radius: 10px;
@@ -52,27 +51,27 @@ html .iu {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  font-family: var(--mincho);
-  font-weight: 700;
-  font-size: 1.5rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
   color: #f2efe9;
   box-shadow: 0 10px 28px -8px rgba(224, 64, 47, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
-.iu .kura-brand { display: flex; flex-direction: column; line-height: 1; }
-.iu .kura-wordmark {
+.iu .brand-block { display: flex; flex-direction: column; line-height: 1; }
+.iu .brand-wordmark {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 1.35rem;
   font-weight: 300;
   letter-spacing: 0.12em;
   color: var(--text);
 }
-.iu .kura-kana {
-  font-family: var(--mincho);
+.iu .brand-tagline {
   color: var(--muted);
   font-size: 0.6rem;
   letter-spacing: 0.3em;
   margin-top: 0.35rem;
-  text-transform: none;
+  text-transform: uppercase;
 }
 
 // ---- headings: light sans + mincho red marks (not Georgia) ----

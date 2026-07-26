@@ -798,11 +798,11 @@ function App() {
 if (location.hostname !== INSTAGRAM_HOSTNAME && !isLocalPreview) {
   alert("Can be used only on Instagram routes");
 } else {
-  document.title = "kura — bot scanner";
-  const kuraFont = document.createElement("link");
-  kuraFont.rel = "stylesheet";
-  kuraFont.href = "https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap";
-  document.head.appendChild(kuraFont);
+  document.title = "BotScraper — bot scanner";
+  const themeFont = document.createElement("link");
+  themeFont.rel = "stylesheet";
+  themeFont.href = "https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap";
+  document.head.appendChild(themeFont);
   document.body.innerHTML = "";
   render(<App />, document.body);
 }
