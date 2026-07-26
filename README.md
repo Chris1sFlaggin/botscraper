@@ -6,8 +6,10 @@ follower/commenti** per account che gestisci.
 
 Come l'originale, gira interamente nel browser: incolli lo script nella console di
 instagram.com loggato, usa la sessione corrente e **nessun dato esce dal tuo PC**.
+Niente da installare, niente server intermedi.
 
-> ⚠️ Da usare **solo** su account che gestisci con autorizzazione.
+> ⚠️ Da usare **solo** su account che gestisci con autorizzazione. Rimuovere follower
+> e cancellare commenti sono azioni irreversibili.
 
 ---
 
@@ -28,16 +30,53 @@ Upstream risponde a una domanda sola: chi non ti segue indietro. BotScraper aggi
 
 ## I tre tool
 
-| Tool | Entry point | Bundle |
-|---|---|---|
-| Follower / bot cleanup | `src/main.tsx` | `dist/dist.js` |
-| Commenti | `src/main-comments.tsx` | `dist/comments.js` |
-| Monitor / lead (read-only) | `src/main-monitor.tsx` | `dist/monitor.js` |
+| Tool | Cosa fa | Entry point | Bundle |
+|---|---|---|---|
+| **Bot scanner** | Analizza i follower, assegna il bot-score, rimuove in blocco | `src/main.tsx` | `dist/dist.js` |
+| **Commenti** | Punteggio bot/spam sui commenti di tutti i post, poi elimina | `src/main-comments.tsx` | `dist/comments.js` |
+| **Monitor** | Lead e monitoraggio account nel tempo — **sola lettura** | `src/main-monitor.tsx` | `dist/monitor.js` |
 
-Istruzioni d'uso e verifica degli endpoint: <https://chris1sflaggin.it/botscraper/>
+Solo il Monitor non esegue nessuna azione su Instagram: gli altri due agiscono
+sull'account, quindi vanno usati loggati **come** il titolare.
 
-Instagram cambia spesso le proprie API interne: prima di usare il tool verifica
-sempre che rispondano, il controllo è nella pagina qui sopra.
+## Come si usa
+
+Il codice pronto da incollare sta su **<https://chris1sflaggin.it/botscraper/>**:
+scegli il tool e premi *Copia il codice*.
+
+![Come copiare il codice dalla pagina](assets/copia-codice.png)
+
+Poi:
+
+1. Apri **instagram.com** ed entra con l'account da analizzare.
+2. Apri la console del browser — `Ctrl + Shift + J` su Windows e Linux, `⌘ + ⌥ + I` su macOS.
+3. Incolla il codice e premi Invio. Se Chrome chiede di scrivere `allow pasting`, fallo:
+   è una sua protezione, va scritto una volta sola.
+4. Compare l'interfaccia sopra Instagram: premi **RUN** e aspetta la scansione.
+
+In alternativa puoi compilare tu i bundle con `npm run build` e incollare il contenuto
+di `dist/`.
+
+### Prima di iniziare
+
+Instagram cambia spesso le proprie API interne, e quando succede il tool smette di
+funzionare finché non viene aggiornato. Il controllo che ti dice subito se puoi
+procedere è nella pagina qui sopra: dura due secondi, fallo sempre.
+
+## Come funziona il bot-score
+
+Il punteggio è una **stima basata su segnali pubblici, non una sentenza**. La revisione
+manuale prima di rimuovere è parte del flusso, non un optional:
+
+1. **Scan** — punteggio a tutti i follower dai dati che arrivano già con la lista.
+2. **Deep-scan** — solo i candidati sopra soglia vengono approfonditi scaricandone il
+   profilo, così le richieste restano poche e il rate-limit non si arrabbia.
+3. **Revisione** — lista ordinata per punteggio, sposti la soglia, controlli e metti in
+   whitelist i falsi positivi. La whitelist persiste tra le sessioni.
+4. **Rimozione** — in blocco, con pause tra le azioni.
+
+Account nuovi, senza foto o con pochi post non sono automaticamente bot: sono solo
+i segnali più comuni tra i bot.
 
 ## Sviluppo
 
