@@ -46,6 +46,38 @@ export const Searching = ({
   const candidateCount = state.results.filter(u => (u.score ?? 0) >= TIER2_CANDIDATE_THRESHOLD && !u.enrichment).length;
   const botCount = state.results.filter(u => (u.score ?? 0) >= state.removalThreshold).length;
 
+  const handleSelectedWhitelistAction = () => {
+    if (state.selectedResults.length === 0) {
+      return;
+    }
+
+    let whitelistedResults: readonly UserNode[] = [];
+
+    switch (state.currentTab) {
+      case "non_whitelisted": {
+        const existingIds = new Set(state.whitelistedResults.map(user => user.id));
+        const usersToAdd = state.selectedResults.filter(user => !existingIds.has(user.id));
+        whitelistedResults = [...state.whitelistedResults, ...usersToAdd];
+        break;
+      }
+
+      case "whitelisted": {
+        const selectedIds = new Set(state.selectedResults.map(user => user.id));
+        whitelistedResults = state.whitelistedResults.filter(user => !selectedIds.has(user.id));
+        break;
+      }
+
+      default:
+        assertUnreachable(state.currentTab);
+    }
+
+    localStorage.setItem(WHITELISTED_RESULTS_STORAGE_KEY, JSON.stringify(whitelistedResults));
+
+    // La selezione qui e' la coda di rimozione: i whitelistati non vanno rimossi,
+    // quindi si azzera (coerente con main.tsx, che esclude i whitelistati dalla soglia).
+    setState({ ...state, whitelistedResults, selectedResults: [] });
+  };
+
   return (
     <section className="workspace-layout">
       <aside className="app-sidebar">
@@ -99,6 +131,16 @@ export const Searching = ({
               Clear selection
             </button>
           </div>
+
+          {state.selectedResults.length > 0 && (
+            <button
+              className="button-secondary sidebar-whitelist-action"
+              onClick={handleSelectedWhitelistAction}
+              title="Protect the selected accounts from removal (or unprotect them, in the Whitelisted tab)"
+            >
+              {state.currentTab === "non_whitelisted" ? "Whitelist" : "Unwhitelist"} Selected ({state.selectedResults.length})
+            </button>
+          )}
 
           <div className="sidebar-stats metric-stack">
             <p><span>Displayed</span><strong>{usersForDisplay.length}</strong></p>

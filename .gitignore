@@ -4,3 +4,6 @@ dist/
 .idea/
 .DS_Store
 bun.lockb
+
+# Configurazione locale Claude Code (contiene percorsi personali)
+.claude/
