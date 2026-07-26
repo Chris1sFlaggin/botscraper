@@ -28,14 +28,16 @@ Upstream risponde a una domanda sola: chi non ti segue indietro. BotScraper aggi
 
 ## I tre tool
 
-| Tool | Entry point | Bundle | Guida |
-|---|---|---|---|
-| Follower / bot cleanup | `src/main.tsx` | `dist/dist.js` | [USAGE_BOTSCRAPER.md](USAGE_BOTSCRAPER.md) |
-| Commenti | `src/main-comments.tsx` | `dist/comments.js` | [USAGE_COMMENTS.md](USAGE_COMMENTS.md) |
-| Monitor / lead (read-only) | `src/main-monitor.tsx` | `dist/monitor.js` | [USAGE_MONITOR.md](USAGE_MONITOR.md) |
+| Tool | Entry point | Bundle |
+|---|---|---|
+| Follower / bot cleanup | `src/main.tsx` | `dist/dist.js` |
+| Commenti | `src/main-comments.tsx` | `dist/comments.js` |
+| Monitor / lead (read-only) | `src/main-monitor.tsx` | `dist/monitor.js` |
 
-Ogni guida parte con un **pre-flight degli endpoint**: Instagram cambia spesso le API,
-verifica sempre che rispondano prima di usare il tool.
+Istruzioni d'uso e verifica degli endpoint: <https://chris1sflaggin.it/botscraper/>
+
+Instagram cambia spesso le proprie API interne: prima di usare il tool verifica
+sempre che rispondano, il controllo è nella pagina qui sopra.
 
 ## Sviluppo
 

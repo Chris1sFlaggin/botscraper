@@ -5,5 +5,5 @@ dist/
 .DS_Store
 bun.lockb
 
-# Configurazione locale Claude Code (contiene percorsi personali)
+# Configurazione locale dell'editor (contiene percorsi personali)
 .claude/
