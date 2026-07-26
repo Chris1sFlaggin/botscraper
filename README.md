@@ -39,6 +39,17 @@ Upstream risponde a una domanda sola: chi non ti segue indietro. BotScraper aggi
 Solo il Monitor non esegue nessuna azione su Instagram: gli altri due agiscono
 sull'account, quindi vanno usati loggati **come** il titolare.
 
+Ogni tool si apre con una schermata di avvio dove imposti i parametri della scansione.
+Quella dello scanner commenti, per esempio, chiede l'account e due limiti — quanti post
+risalire e quanti commenti leggere per post — così puoi tenere corta la scansione su
+profili con molto storico:
+
+![Schermata iniziale dello scanner commenti](assets/scanner-commenti.png)
+
+Se l'account indicato non è quello con cui sei loggato, il tool te lo dice e chiede
+conferma prima di partire: da lì prosegue in **sola scansione ed esportazione**, con
+le azioni di cancellazione disattivate.
+
 ## Come si usa
 
 Il codice pronto da incollare sta su **<https://chris1sflaggin.it/botscraper/>**:
